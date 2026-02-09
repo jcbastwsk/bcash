@@ -1,0 +1,10 @@
+# Claude Code
+.claude/
+
+# Build artifacts
+*.o
+*.core
+bcash
+
+# BDB logs
+db.log
