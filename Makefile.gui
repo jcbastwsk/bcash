@@ -1,0 +1,60 @@
+# Makefile for bcash wxWidgets GUI on FreeBSD
+# gmake -f Makefile.gui
+
+CC=cc
+CXX=c++
+
+# FreeBSD paths
+BOOST_INCLUDE=/usr/local/include
+BOOST_LIB=/usr/local/lib
+DB_INCLUDE=/usr/local/include/db5
+DB_LIB=/usr/local/lib
+OPENSSL_INCLUDE=/usr/local/include
+OPENSSL_LIB=/usr/local/lib
+
+WX_CXXFLAGS=$(shell wxgtk3u-3.2-config --cxxflags)
+WX_LIBS=$(shell wxgtk3u-3.2-config --libs richtext,html,core,base)
+
+CXXFLAGS=-O2 -std=c++11 -w \
+	-I$(BOOST_INCLUDE) \
+	-I$(DB_INCLUDE) \
+	-I$(OPENSSL_INCLUDE) \
+	-DWORD64_AVAILABLE \
+	-D__STDC_FORMAT_MACROS \
+	-D__STDC_LIMIT_MACROS \
+	-DGUI \
+	$(WX_CXXFLAGS)
+
+LDFLAGS=-L$(BOOST_LIB) -L$(DB_LIB) -L$(OPENSSL_LIB)
+
+LIBS=-ldb_cxx-5 -lssl -lcrypto -lpthread $(WX_LIBS)
+
+OBJS=util.o script.o db.o net.o main.o market.o sha.o irc.o news.o bgold.o rpc.o ui.o uibase.o
+
+all: bcash-gui
+
+bcash-gui: $(OBJS)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+# Dependencies (approximate)
+util.o: util.cpp headers.h util.h serialize.h uint256.h
+script.o: script.cpp headers.h script.h
+db.o: db.cpp headers.h db.h
+net.o: net.cpp headers.h net.h
+main.o: main.cpp headers.h main.h sha.h bgold.h
+market.o: market.cpp headers.h market.h
+sha.o: sha.cpp sha.h
+irc.o: irc.cpp headers.h irc.h
+news.o: news.cpp headers.h news.h
+bgold.o: bgold.cpp headers.h bgold.h
+rpc.o: rpc.cpp headers.h rpc.h bgold.h
+ui.o: ui.cpp headers.h ui.h uibase.h bgold.h
+uibase.o: uibase.cpp uibase.h
+
+clean:
+	rm -f $(OBJS) bcash-gui
+
+.PHONY: all clean

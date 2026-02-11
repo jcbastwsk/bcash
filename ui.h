@@ -1,17 +1,19 @@
 // Copyright (c) 2009 Satoshi Nakamoto
+// Copyright (c) 2026 Bcash developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
+#ifndef UI_H
+#define UI_H
 
 
-
-DECLARE_EVENT_TYPE(wxEVT_CROSSTHREADCALL, -1)
-DECLARE_EVENT_TYPE(wxEVT_REPLY1, -1)
-DECLARE_EVENT_TYPE(wxEVT_REPLY2, -1)
-DECLARE_EVENT_TYPE(wxEVT_REPLY3, -1)
-DECLARE_EVENT_TYPE(wxEVT_TABLEADDED, -1)
-DECLARE_EVENT_TYPE(wxEVT_TABLEUPDATED, -1)
-DECLARE_EVENT_TYPE(wxEVT_TABLEDELETED, -1)
+wxDECLARE_EVENT(wxEVT_CROSSTHREADCALL, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_REPLY1, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_REPLY2, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_REPLY3, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_TABLEADDED, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_TABLEUPDATED, wxCommandEvent);
+wxDECLARE_EVENT(wxEVT_TABLEDELETED, wxCommandEvent);
 
 enum
 {
@@ -57,7 +59,8 @@ protected:
     void OnListItemActivatedProductsSent(wxListEvent& event);
     void OnListItemActivatedOrdersSent(wxListEvent& event);
     void OnListItemActivatedOrdersReceived(wxListEvent& event);
-	
+    void OnMenuViewPeers(wxCommandEvent& event);
+
 public:
     /** Constructor */
     CMainFrame(wxWindow* parent);
@@ -75,6 +78,9 @@ public:
     void InsertTransaction(const CWalletTx& wtx, bool fNew, int nIndex=-1);
     void RefreshListCtrl();
     void RefreshStatus();
+    void RefreshNewsTab();
+    void RefreshMarketTab();
+    void RefreshBgoldTab();
 };
 
 
@@ -135,7 +141,7 @@ protected:
     void OnButtonPaste(wxCommandEvent& event);
     void OnButtonSend(wxCommandEvent& event);
     void OnButtonCancel(wxCommandEvent& event);
-	
+
 public:
     /** Constructor */
     CSendDialog(wxWindow* parent, const wxString& strAddress="");
@@ -151,7 +157,7 @@ public:
     void OnButtonOK(wxCommandEvent& event);
     void OnButtonCancel(wxCommandEvent& event);
     void OnPaint(wxPaintEvent& event);
-	
+
 public:
     /** Constructor */
     CSendingDialog(wxWindow* parent, const CAddress& addrIn, int64 nPriceIn, const CWalletTx& wtxIn);
@@ -413,5 +419,29 @@ public:
 
 
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// CPeersDialog - Peer management panel
+//
+
+class CPeersDialog : public wxDialog
+{
+protected:
+    void OnButtonAddPeer(wxCommandEvent& event);
+    void OnButtonDisconnect(wxCommandEvent& event);
+    void OnButtonRefresh(wxCommandEvent& event);
+    void OnButtonClose(wxCommandEvent& event);
+
+public:
+    CPeersDialog(wxWindow* parent);
+
+    wxListCtrl* m_listCtrl;
+    wxButton* m_buttonAddPeer;
+    wxButton* m_buttonDisconnect;
+    wxButton* m_buttonRefresh;
+
+    void RefreshPeerList();
+};
 
 
+#endif // UI_H

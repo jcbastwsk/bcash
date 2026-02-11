@@ -15,8 +15,8 @@ void ThreadDNSSeeds(void* parg);
 
 // DNS seed hostnames for peer discovery
 static const char* dns_seeds[] = {
-    "seed.bcash.example.com",
-    "dnsseed.bcash.example.com",
+    "seed.bca.sh",
+    "dnsseed.bca.sh",
     NULL
 };
 

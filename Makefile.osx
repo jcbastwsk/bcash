@@ -1,0 +1,113 @@
+# Makefile for bcash on macOS (Monterey 12.0+)
+# gmake -f Makefile.osx          -> bcash (headless/TUI)
+# gmake -f Makefile.osx gui      -> bcash-gui (wxWidgets GUI)
+#
+# Prerequisites (Homebrew):
+#   brew install openssl@3 berkeley-db@5 boost wxwidgets
+
+CXX=c++
+
+# macOS deployment target - backwards compatible to Monterey
+export MACOSX_DEPLOYMENT_TARGET=12.0
+OSX_MIN=-mmacosx-version-min=12.0
+
+# Homebrew paths (arm64 Apple Silicon default, with x86_64 fallback)
+HOMEBREW_PREFIX=$(shell brew --prefix 2>/dev/null || echo /usr/local)
+
+BOOST_INCLUDE=$(HOMEBREW_PREFIX)/include
+BOOST_LIB=$(HOMEBREW_PREFIX)/lib
+
+# OpenSSL (Homebrew keg-only)
+OPENSSL_PREFIX=$(shell brew --prefix openssl@3 2>/dev/null || echo $(HOMEBREW_PREFIX)/opt/openssl@3)
+OPENSSL_INCLUDE=$(OPENSSL_PREFIX)/include
+OPENSSL_LIB=$(OPENSSL_PREFIX)/lib
+
+# Berkeley DB 5
+DB_PREFIX=$(shell brew --prefix berkeley-db@5 2>/dev/null || echo $(HOMEBREW_PREFIX)/opt/berkeley-db@5)
+DB_INCLUDE=$(DB_PREFIX)/include
+DB_LIB=$(DB_PREFIX)/lib
+
+# wxWidgets (for GUI build)
+WX_CONFIG=$(shell which wx-config 2>/dev/null || echo wx-config)
+WX_CXXFLAGS=$(shell $(WX_CONFIG) --cxxflags 2>/dev/null)
+WX_LIBS=$(shell $(WX_CONFIG) --libs richtext,html,core,base 2>/dev/null)
+
+CXXFLAGS_COMMON=-O2 -std=c++11 -w \
+	$(OSX_MIN) \
+	-I$(BOOST_INCLUDE) \
+	-I$(DB_INCLUDE) \
+	-I$(OPENSSL_INCLUDE) \
+	-DWORD64_AVAILABLE \
+	-D__STDC_FORMAT_MACROS \
+	-D__STDC_LIMIT_MACROS
+
+LDFLAGS_COMMON=-L$(BOOST_LIB) -L$(DB_LIB) -L$(OPENSSL_LIB) $(OSX_MIN)
+
+# macOS uses ncurses from system, pthreads via -pthread
+LIBS_COMMON=-ldb_cxx-5 -lssl -lcrypto -lpthread -lncurses
+
+# --- Headless/TUI build ---
+CXXFLAGS_TUI=$(CXXFLAGS_COMMON)
+LDFLAGS_TUI=$(LDFLAGS_COMMON)
+LIBS_TUI=$(LIBS_COMMON)
+
+OBJS_TUI=util.o script.o db.o net.o main.o market.o sha.o irc.o news.o bgold.o rpc.o ui_tui.o
+
+# --- GUI build ---
+CXXFLAGS_GUI=$(CXXFLAGS_COMMON) -DGUI $(WX_CXXFLAGS)
+LDFLAGS_GUI=$(LDFLAGS_COMMON)
+LIBS_GUI=-ldb_cxx-5 -lssl -lcrypto -lpthread $(WX_LIBS)
+
+OBJS_GUI=util.gui.o script.gui.o db.gui.o net.gui.o main.gui.o market.gui.o sha.gui.o irc.gui.o news.gui.o bgold.gui.o rpc.gui.o ui.gui.o uibase.gui.o
+
+# Default target: headless
+all: bcash
+
+bcash: $(OBJS_TUI)
+	$(CXX) $(LDFLAGS_TUI) -o $@ $(OBJS_TUI) $(LIBS_TUI)
+
+gui: bcash-gui
+
+bcash-gui: $(OBJS_GUI)
+	$(CXX) $(LDFLAGS_GUI) -o $@ $(OBJS_GUI) $(LIBS_GUI)
+
+# TUI object rules
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS_TUI) -c -o $@ $<
+
+# GUI object rules (separate suffix to avoid conflicts)
+%.gui.o: %.cpp
+	$(CXX) $(CXXFLAGS_GUI) -c -o $@ $<
+
+clean:
+	rm -f $(OBJS_TUI) $(OBJS_GUI) bcash bcash-gui
+
+# Dependencies (approximate)
+util.o: util.cpp headers.h util.h serialize.h uint256.h
+script.o: script.cpp headers.h script.h
+db.o: db.cpp headers.h db.h
+net.o: net.cpp headers.h net.h
+main.o: main.cpp headers.h main.h sha.h bgold.h
+market.o: market.cpp headers.h market.h
+sha.o: sha.cpp sha.h
+irc.o: irc.cpp headers.h irc.h
+news.o: news.cpp headers.h news.h
+bgold.o: bgold.cpp headers.h bgold.h
+rpc.o: rpc.cpp headers.h rpc.h bgold.h
+ui_tui.o: ui_tui.cpp headers.h bgold.h
+
+util.gui.o: util.cpp headers.h util.h serialize.h uint256.h
+script.gui.o: script.cpp headers.h script.h
+db.gui.o: db.cpp headers.h db.h
+net.gui.o: net.cpp headers.h net.h
+main.gui.o: main.cpp headers.h main.h sha.h bgold.h
+market.gui.o: market.cpp headers.h market.h
+sha.gui.o: sha.cpp sha.h
+irc.gui.o: irc.cpp headers.h irc.h
+news.gui.o: news.cpp headers.h news.h
+bgold.gui.o: bgold.cpp headers.h bgold.h
+rpc.gui.o: rpc.cpp headers.h rpc.h bgold.h
+ui.gui.o: ui.cpp headers.h ui.h uibase.h bgold.h
+uibase.gui.o: uibase.cpp uibase.h
+
+.PHONY: all gui clean

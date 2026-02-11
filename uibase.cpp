@@ -10,6 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "uibase.h"
+#include <wx/artprov.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -27,6 +28,13 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_menuFile->Append(m_menuFileExit);
 
     m_menubar->Append(m_menuFile, wxT("&File"));
+
+    m_menuView = new wxMenu();
+    wxMenuItem* m_menuViewPeers;
+    m_menuViewPeers = new wxMenuItem(m_menuView, wxID_VIEWPEERS, wxString(wxT("&Peers...")) , wxEmptyString, wxITEM_NORMAL);
+    m_menuView->Append(m_menuViewPeers);
+
+    m_menubar->Append(m_menuView, wxT("&View"));
 
     m_menuOptions = new wxMenu();
     wxMenuItem* m_menuOptionsGenerateBitcoins;
@@ -53,8 +61,8 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_toolBar->SetToolSeparation(1);
     m_toolBar->SetFont(wxFont(wxNORMAL_FONT->GetPointSize(), 70, 90, 90, false, wxEmptyString));
 
-    m_toolBar->AddTool(wxID_BUTTONSEND, wxT("&Send Coins"), wxBitmap(wxT("send20"), wxBITMAP_TYPE_RESOURCE), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
-    m_toolBar->AddTool(wxID_BUTTONRECEIVE, wxT("&Address Book"), wxBitmap(wxT("addressbook20"), wxBITMAP_TYPE_RESOURCE), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
+    m_toolBar->AddTool(wxID_BUTTONSEND, wxT("&Send Coins"), wxBitmap(20, 20), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
+    m_toolBar->AddTool(wxID_BUTTONRECEIVE, wxT("&Address Book"), wxBitmap(20, 20), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
     m_toolBar->Realize();
 
     m_statusBar = this->CreateStatusBar(1, wxST_SIZEGRIP, wxID_ANY);
@@ -69,7 +77,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     wxBoxSizer* bSizer85;
     bSizer85 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your Bitcoin Address:"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your Bcash Address:"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText32->Wrap(-1);
     bSizer85->Add(m_staticText32, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5);
 
@@ -110,7 +118,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_panel14->SetSizer(bSizer66);
     m_panel14->Layout();
     bSizer66->Fit(m_panel14);
-    bSizer3->Add(m_panel14, 1, wxEXPAND|wxALIGN_BOTTOM|wxALL, 5);
+    bSizer3->Add(m_panel14, 1, wxEXPAND|wxALL, 5);
 
 
     bSizer3->Add(0, 0, 0, wxEXPAND, 5);
@@ -137,6 +145,36 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_panel7->Layout();
     bSizer157->Fit(m_panel7);
     m_notebook->AddPage(m_panel7, wxT("All Transactions"), false);
+
+    // News tab
+    m_panelNews = new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    wxBoxSizer* bSizerNews = new wxBoxSizer(wxVERTICAL);
+    m_listCtrlNews = new wxListCtrl(m_panelNews, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT);
+    bSizerNews->Add(m_listCtrlNews, 1, wxEXPAND|wxALL, 5);
+    m_panelNews->SetSizer(bSizerNews);
+    m_panelNews->Layout();
+    bSizerNews->Fit(m_panelNews);
+    m_notebook->AddPage(m_panelNews, wxT("News"), false);
+
+    // Market tab
+    m_panelMarket = new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    wxBoxSizer* bSizerMarket = new wxBoxSizer(wxVERTICAL);
+    m_listCtrlMarket = new wxListCtrl(m_panelMarket, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT);
+    bSizerMarket->Add(m_listCtrlMarket, 1, wxEXPAND|wxALL, 5);
+    m_panelMarket->SetSizer(bSizerMarket);
+    m_panelMarket->Layout();
+    bSizerMarket->Fit(m_panelMarket);
+    m_notebook->AddPage(m_panelMarket, wxT("Market"), false);
+
+    // Bgold tab
+    m_panelBgold = new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    wxBoxSizer* bSizerBgold = new wxBoxSizer(wxVERTICAL);
+    m_listCtrlBgold = new wxListCtrl(m_panelBgold, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT);
+    bSizerBgold->Add(m_listCtrlBgold, 1, wxEXPAND|wxALL, 5);
+    m_panelBgold->SetSizer(bSizerBgold);
+    m_panelBgold->Layout();
+    bSizerBgold->Fit(m_panelBgold);
+    m_notebook->AddPage(m_panelBgold, wxT("Bgold"), false);
 
     bSizer2->Add(m_notebook, 1, wxEXPAND, 5);
 
@@ -225,6 +263,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     this->Connect(m_menuOptionsGenerateBitcoins->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuOptionsGenerate));
     this->Connect(m_menuOptionsOptions->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuOptionsOptions));
     this->Connect(m_menuHelpAbout->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuHelpAbout));
+    this->Connect(m_menuViewPeers->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuViewPeers));
     this->Connect(wxID_BUTTONSEND, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(CMainFrameBase::OnButtonSend));
     this->Connect(wxID_BUTTONRECEIVE, wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(CMainFrameBase::OnButtonAddressBook));
     m_textCtrlAddress->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(CMainFrameBase::OnKeyDown), NULL, this);
@@ -421,7 +460,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
     wxBoxSizer* bSizer64;
     bSizer64 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("Bitcoin "), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("Bcash "), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText40->Wrap(-1);
     m_staticText40->SetFont(wxFont(10, 74, 90, 92, false, wxT("Tahoma")));
 
@@ -438,7 +477,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
 
     bSizer63->Add(0, 4, 0, wxEXPAND, 5);
 
-    m_staticTextMain = new wxStaticText(this, wxID_ANY, wxT("Copyright © 2009 Satoshi Nakamoto.\n\nThis is experimental software.  Do not rely on it for actual financial transactions.\n\nDistributed under the MIT/X11 software license, see the accompanying file license.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by Eric Young (eay@cryptsoft.com)."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticTextMain = new wxStaticText(this, wxID_ANY, wxT("Copyright (c) 2026 Bcash developers.\nBased on Bitcoin 0.01 by Satoshi Nakamoto.\n\nThis is experimental software.  Do not rely on it for actual financial transactions.\n\nDistributed under the MIT/X11 software license, see the accompanying file license.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by Eric Young (eay@cryptsoft.com)."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticTextMain->Wrap(400);
     bSizer63->Add(m_staticTextMain, 0, wxALL, 5);
 
@@ -458,7 +497,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
     m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
     bSizer61->Add(m_buttonOK, 0, wxALL, 5);
 
-    bSizer60->Add(bSizer61, 0, wxALIGN_RIGHT|wxEXPAND, 5);
+    bSizer60->Add(bSizer61, 0, wxEXPAND, 5);
 
     this->SetSizer(bSizer60);
     this->Layout();
@@ -503,7 +542,7 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
 
     bSizer47->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_bitmapCheckMark = new wxStaticBitmap(this, wxID_ANY, wxICON(check), wxDefaultPosition, wxSize(16,16), 0);
+    m_bitmapCheckMark = new wxStaticBitmap(this, wxID_ANY, wxArtProvider::GetBitmap(wxART_TICK_MARK, wxART_OTHER, wxSize(16,16)), wxDefaultPosition, wxSize(16,16), 0);
     bSizer47->Add(m_bitmapCheckMark, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
 
     m_staticText36 = new wxStaticText(this, wxID_ANY, wxT("Pay &To:"), wxDefaultPosition, wxSize(-1,-1), wxALIGN_RIGHT);
@@ -641,7 +680,7 @@ CSendingDialogBase::CSendingDialogBase(wxWindow* parent, wxWindowID id, const wx
 
     m_staticTextSending = new wxStaticText(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,14), 0);
     m_staticTextSending->Wrap(-1);
-    bSizer68->Add(m_staticTextSending, 0, wxALIGN_CENTER_VERTICAL|wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 8);
+    bSizer68->Add(m_staticTextSending, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 8);
 
     m_textCtrlStatus = new wxTextCtrl(this, wxID_ANY, wxT("\n\nConnecting..."), wxDefaultPosition, wxDefaultSize, wxTE_CENTRE|wxTE_MULTILINE|wxTE_NO_VSCROLL|wxTE_READONLY|wxNO_BORDER);
     m_textCtrlStatus->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
@@ -1748,7 +1787,7 @@ CGetTextFromUserDialogBase::CGetTextFromUserDialogBase(wxWindow* parent, wxWindo
     bSizer81->Add(m_staticTextMessage1, 0, wxTOP|wxRIGHT|wxLEFT, 5);
 
     m_textCtrl1 = new wxTextCtrl(this, wxID_TEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-    bSizer81->Add(m_textCtrl1, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL, 5);
+    bSizer81->Add(m_textCtrl1, 0, wxALL|wxEXPAND, 5);
 
     m_staticTextMessage2 = new wxStaticText(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_staticTextMessage2->Wrap(-1);
@@ -1759,7 +1798,7 @@ CGetTextFromUserDialogBase::CGetTextFromUserDialogBase(wxWindow* parent, wxWindo
     m_textCtrl2 = new wxTextCtrl(this, wxID_TEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     m_textCtrl2->Hide();
 
-    bSizer81->Add(m_textCtrl2, 0, wxALL|wxEXPAND|wxALIGN_CENTER_HORIZONTAL, 5);
+    bSizer81->Add(m_textCtrl2, 0, wxALL|wxEXPAND, 5);
 
 
     bSizer81->Add(0, 0, 1, wxEXPAND, 5);

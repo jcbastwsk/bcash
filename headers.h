@@ -71,6 +71,21 @@ using namespace boost;
 
 
 
+// Include wx headers BEFORE util.h because util.h defines macros
+// (Sleep, loop) that conflict with wx header declarations
+#ifdef GUI
+#include <wx/wx.h>
+#include <wx/notebook.h>
+#include <wx/listctrl.h>
+#include <wx/html/htmlwin.h>
+#include <wx/richtext/richtextctrl.h>
+#include <wx/treectrl.h>
+#include <wx/clipbrd.h>
+#include <wx/dataobj.h>
+#include <wx/snglinst.h>
+#include <wx/image.h>
+#endif
+
 #include "serialize.h"
 #include "uint256.h"
 #include "util.h"
@@ -84,3 +99,8 @@ using namespace boost;
 #include "main.h"
 #include "market.h"
 #include "news.h"
+
+#ifdef GUI
+#include "uibase.h"
+#include "ui.h"
+#endif

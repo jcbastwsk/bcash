@@ -138,8 +138,10 @@ int64 GetBgoldBalance(const vector<unsigned char>& vchPubKey)
 {
     uint160 hashPubKey = Hash160(vchPubKey);
     int64 nBalance = 0;
-    CBgoldDB bgolddb("r");
-    bgolddb.ReadBalance(hashPubKey, nBalance);
+    try {
+        CBgoldDB bgolddb("r");
+        bgolddb.ReadBalance(hashPubKey, nBalance);
+    } catch (...) {}
     return nBalance;
 }
 

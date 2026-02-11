@@ -95,6 +95,7 @@
 #define wxID_LEAVETABLE 1049
 #define wxID_DITCHPLAYER 1050
 #define wxID_TEXTCTRL 1051
+#define wxID_VIEWPEERS 1052
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class CMainFrameBase
@@ -106,6 +107,7 @@ private:
 protected:
     wxMenuBar* m_menubar;
     wxMenu* m_menuFile;
+    wxMenu* m_menuView;
     wxMenu* m_menuHelp;
     wxToolBar* m_toolBar;
     wxStatusBar* m_statusBar;
@@ -126,6 +128,9 @@ protected:
     wxPanel* m_panel8;
     wxPanel* m_panel10;
     wxPanel* m_panel11;
+    wxPanel* m_panelNews;
+    wxPanel* m_panelMarket;
+    wxPanel* m_panelBgold;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnClose(wxCloseEvent& event){ event.Skip(); }
@@ -149,6 +154,7 @@ protected:
     virtual void OnListItemActivatedOrdersSent(wxListEvent& event){ event.Skip(); }
     virtual void OnListItemActivatedProductsSent(wxListEvent& event){ event.Skip(); }
     virtual void OnListItemActivatedOrdersReceived(wxListEvent& event){ event.Skip(); }
+    virtual void OnMenuViewPeers(wxCommandEvent& event){ event.Skip(); }
 
 
 public:
@@ -158,7 +164,10 @@ public:
     wxListCtrl* m_listCtrlOrdersSent;
     wxListCtrl* m_listCtrlProductsSent;
     wxListCtrl* m_listCtrlOrdersReceived;
-    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("Bitcoin"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(705,484), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
+    wxListCtrl* m_listCtrlNews;
+    wxListCtrl* m_listCtrlMarket;
+    wxListCtrl* m_listCtrlBgold;
+    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("Bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(780,520), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
     ~CMainFrameBase();
 
 };
@@ -234,7 +243,7 @@ protected:
 
 public:
     wxStaticText* m_staticTextVersion;
-    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About Bitcoin"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
+    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About Bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
     ~CAboutDialogBase();
 
 };
@@ -342,7 +351,7 @@ protected:
 
 
 public:
-    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your Bitcoin Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your Bcash Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
     ~CYourAddressDialogBase();
 
 };

@@ -67,11 +67,13 @@ string DateTimeStr(unsigned int nTime)
     return string(buf);
 }
 
+#ifndef GUI
 // wxMessageBox stub for headless build
 inline void wxMessageBox(const string& msg, const string& title = "")
 {
     printf("ALERT: %s: %s\n", title.c_str(), msg.c_str());
 }
+#endif
 
 
 

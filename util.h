@@ -65,6 +65,15 @@ typedef int SOCKET;
 #define _UI64_MAX ULLONG_MAX
 #define _I64_MAX LLONG_MAX
 #define MAX_PATH 260
+#define stricmp strcasecmp
+#define strlwr(s) ({ char* _p = (s); for (; *_p; ++_p) *_p = tolower(*_p); (s); })
+inline uintptr_t _beginthread(void (*func)(void*), unsigned, void* arg) {
+    pthread_t tid;
+    if (pthread_create(&tid, NULL, (void*(*)(void*))func, arg) != 0) return (uintptr_t)-1;
+    pthread_detach(tid);
+    return (uintptr_t)tid;
+}
+#define ExitProcess(code) exit(code)
 #endif
 
 // This is needed because the foreach macro can't get over the comma in pair<t1, t2>

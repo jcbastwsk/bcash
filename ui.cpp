@@ -3,22 +3,21 @@
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
 #include "headers.h"
-#ifdef _MSC_VER
-#include <crtdbg.h>
-#endif
+#include "bgold.h"
 
 
 
-DEFINE_EVENT_TYPE(wxEVT_CROSSTHREADCALL)
-DEFINE_EVENT_TYPE(wxEVT_REPLY1)
-DEFINE_EVENT_TYPE(wxEVT_REPLY2)
-DEFINE_EVENT_TYPE(wxEVT_REPLY3)
-DEFINE_EVENT_TYPE(wxEVT_TABLEADDED)
-DEFINE_EVENT_TYPE(wxEVT_TABLEUPDATED)
-DEFINE_EVENT_TYPE(wxEVT_TABLEDELETED)
+wxDEFINE_EVENT(wxEVT_CROSSTHREADCALL, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_REPLY1, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_REPLY2, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_REPLY3, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_TABLEADDED, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_TABLEUPDATED, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_TABLEDELETED, wxCommandEvent);
 
 CMainFrame* pframeMain = NULL;
 map<string, string> mapAddressBook;
+bool fSoloMine = false;
 
 
 void ThreadRequestProductDetails(void* parg);
@@ -213,11 +212,14 @@ void AddPendingCustomEvent(wxEvtHandler* pevthandler, int nEventID, const T pbeg
 
     const char* pbegin = (pendIn != pbeginIn) ? &pbeginIn[0] : NULL;
     const char* pend = pbegin + (pendIn - pbeginIn) * sizeof(pbeginIn[0]);
+    int nSize = pend - pbegin;
     wxCommandEvent event(nEventID);
-    wxString strData(wxChar(0), (pend - pbegin) / sizeof(wxChar) + 1);
-    memcpy(&strData[0], pbegin, pend - pbegin);
+    // Store raw binary data as Latin1 string (each byte maps to one wxChar)
+    wxString strData;
+    for (int i = 0; i < nSize; i++)
+        strData += wxChar((unsigned char)pbegin[i]);
     event.SetString(strData);
-    event.SetInt(pend - pbegin);
+    event.SetInt(nSize);
 
     pevthandler->AddPendingEvent(event);
 }
@@ -251,7 +253,11 @@ void AddPendingReplyEvent3(void* pevthandler, CDataStream& vRecv)
 CDataStream GetStreamFromEvent(const wxCommandEvent& event)
 {
     wxString strData = event.GetString();
-    return CDataStream(strData.begin(), strData.begin() + event.GetInt(), SER_NETWORK);
+    int nSize = event.GetInt();
+    vector<char> vch(nSize);
+    for (int i = 0; i < nSize; i++)
+        vch[i] = (char)(unsigned char)strData[i].GetValue();
+    return CDataStream(vch, SER_NETWORK);
 }
 
 
@@ -277,25 +283,17 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     m_choiceFilter->SetSelection(0);
     m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
     m_listCtrl->SetFocus();
-    SetIcon(wxICON(bitcoin));
+    SetIcon(wxNullIcon);
     m_menuOptions->Check(wxID_OPTIONSGENERATEBITCOINS, fGenerateBitcoins);
 
-    // Init toolbar with transparency masked bitmaps
+    // Init toolbar with placeholder bitmaps (no resource bitmaps on UNIX)
     m_toolBar->ClearTools();
-
-    //// shouldn't have to do mask separately anymore, bitmap alpha support added in wx 2.8.9,
-    wxBitmap bmpSend(wxT("send20"), wxBITMAP_TYPE_RESOURCE);
-    bmpSend.SetMask(new wxMask(wxBitmap(wxT("send20mask"), wxBITMAP_TYPE_RESOURCE)));
-    m_toolBar->AddTool(wxID_BUTTONSEND, wxT("&Send Coins"), bmpSend, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
-
-    wxBitmap bmpAddressBook(wxT("addressbook20"), wxBITMAP_TYPE_RESOURCE);
-    bmpAddressBook.SetMask(new wxMask(wxBitmap(wxT("addressbook20mask"), wxBITMAP_TYPE_RESOURCE)));
-    m_toolBar->AddTool(wxID_BUTTONRECEIVE, wxT("&Address Book"), bmpAddressBook, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
-
+    m_toolBar->AddTool(wxID_BUTTONSEND, wxT("&Send Coins"), wxBitmap(20, 20), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
+    m_toolBar->AddTool(wxID_BUTTONRECEIVE, wxT("&Address Book"), wxBitmap(20, 20), wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString);
     m_toolBar->Realize();
 
     // Init column headers
-    int nDateWidth = DateTimeStr(1229413914).size() * 6 + 8;
+    int nDateWidth = DateTimeStr((int64)1229413914).size() * 6 + 8;
     m_listCtrl->InsertColumn(0, "",             wxLIST_FORMAT_LEFT,     0);
     m_listCtrl->InsertColumn(1, "",             wxLIST_FORMAT_LEFT,     0);
     m_listCtrl->InsertColumn(2, "Status",       wxLIST_FORMAT_LEFT,    90);
@@ -322,6 +320,24 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     //m_listCtrlOrdersReceived->InsertColumn(3, "",                wxLIST_FORMAT_LEFT,  100);
     //m_listCtrlOrdersReceived->InsertColumn(4, "",                wxLIST_FORMAT_LEFT,  100);
 
+    // News tab columns
+    m_listCtrlNews->InsertColumn(0, "Score",       wxLIST_FORMAT_LEFT,   60);
+    m_listCtrlNews->InsertColumn(1, "Title",       wxLIST_FORMAT_LEFT,  300);
+    m_listCtrlNews->InsertColumn(2, "URL",         wxLIST_FORMAT_LEFT,  200);
+    m_listCtrlNews->InsertColumn(3, "Date",        wxLIST_FORMAT_LEFT,  120);
+
+    // Market tab columns
+    m_listCtrlMarket->InsertColumn(0, "Category",    wxLIST_FORMAT_LEFT,  100);
+    m_listCtrlMarket->InsertColumn(1, "Title",       wxLIST_FORMAT_LEFT,  200);
+    m_listCtrlMarket->InsertColumn(2, "Price",       wxLIST_FORMAT_LEFT,  100);
+    m_listCtrlMarket->InsertColumn(3, "Seller",      wxLIST_FORMAT_LEFT,  200);
+
+    // Bgold tab columns
+    m_listCtrlBgold->InsertColumn(0, "Height",      wxLIST_FORMAT_LEFT,   80);
+    m_listCtrlBgold->InsertColumn(1, "Hash",        wxLIST_FORMAT_LEFT,  300);
+    m_listCtrlBgold->InsertColumn(2, "Time",        wxLIST_FORMAT_LEFT,  150);
+    m_listCtrlBgold->InsertColumn(3, "Txns",        wxLIST_FORMAT_LEFT,   60);
+
     // Init status bar
     int pnWidths[3] = { -100, 81, 286 };
     m_statusBar->SetFieldsCount(3, pnWidths);
@@ -333,6 +349,11 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
 
     // Fill listctrl with wallet transactions
     RefreshListCtrl();
+
+    // Initial population of other tabs
+    RefreshNewsTab();
+    RefreshMarketTab();
+    RefreshBgoldTab();
 }
 
 CMainFrame::~CMainFrame()
@@ -351,7 +372,7 @@ void Shutdown(void* parg)
         StopNode();
         DBFlush(true);
 
-        printf("Bitcoin exiting\n");
+        printf("Bcash exiting\n");
         exit(0);
     }
 }
@@ -657,6 +678,61 @@ void CMainFrame::RefreshStatus()
     }
 }
 
+void CMainFrame::RefreshNewsTab()
+{
+    m_listCtrlNews->DeleteAllItems();
+    vector<CNewsItem> vNews = GetTopNews(100);
+    for (int i = 0; i < (int)vNews.size(); i++)
+    {
+        const CNewsItem& item = vNews[i];
+        double dScore = GetNewsScore(item.nVotes, item.nTime);
+        int nIndex = m_listCtrlNews->InsertItem(i, strprintf("%.1f", dScore));
+        m_listCtrlNews->SetItem(nIndex, 1, item.strTitle);
+        m_listCtrlNews->SetItem(nIndex, 2, item.strURL);
+        m_listCtrlNews->SetItem(nIndex, 3, item.nTime ? DateTimeStr(item.nTime) : "");
+    }
+}
+
+void CMainFrame::RefreshMarketTab()
+{
+    m_listCtrlMarket->DeleteAllItems();
+    CRITICAL_BLOCK(cs_mapProducts)
+    {
+        int i = 0;
+        for (map<uint256, CProduct>::iterator mi = mapProducts.begin(); mi != mapProducts.end(); ++mi)
+        {
+            CProduct& product = (*mi).second;
+            int nIndex = m_listCtrlMarket->InsertItem(i++, product.mapValue["category"]);
+            m_listCtrlMarket->SetItem(nIndex, 1, product.mapValue["title"]);
+            m_listCtrlMarket->SetItem(nIndex, 2, product.mapValue["price"]);
+            m_listCtrlMarket->SetItem(nIndex, 3, PubKeyToAddress(product.vchPubKeyFrom));
+        }
+    }
+}
+
+void CMainFrame::RefreshBgoldTab()
+{
+    m_listCtrlBgold->DeleteAllItems();
+    CRITICAL_BLOCK(cs_bgold)
+    {
+        // Collect and sort by height descending
+        vector<pair<int, uint256> > vSorted;
+        vSorted.reserve(mapBgoldBlocks.size());
+        for (map<uint256, CBgoldBlock>::iterator mi = mapBgoldBlocks.begin(); mi != mapBgoldBlocks.end(); ++mi)
+            vSorted.push_back(make_pair((*mi).second.nHeight, (*mi).first));
+        sort(vSorted.rbegin(), vSorted.rend());
+
+        for (int i = 0; i < (int)vSorted.size(); i++)
+        {
+            const CBgoldBlock& block = mapBgoldBlocks[vSorted[i].second];
+            int nIndex = m_listCtrlBgold->InsertItem(i, strprintf("%d", block.nHeight));
+            m_listCtrlBgold->SetItem(nIndex, 1, vSorted[i].second.ToString().substr(0, 16));
+            m_listCtrlBgold->SetItem(nIndex, 2, block.nTime ? DateTimeStr(block.nTime) : "");
+            m_listCtrlBgold->SetItem(nIndex, 3, "0"); // txn count not tracked in bgold blocks
+        }
+    }
+}
+
 void CMainFrame::RefreshListCtrl()
 {
     fRefreshListCtrl = true;
@@ -771,14 +847,24 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
         strGen = "(not connected)";
     m_statusBar->SetStatusText(strGen, 1);
 
-    string strStatus = strprintf("     %d connections     %d blocks     %d transactions", vNodes.size(), nBestHeight + 1, m_listCtrl->GetItemCount());
+    string strStatus = strprintf("     %d peers     %d blocks     %d txns", vNodes.size(), nBestHeight + 1, m_listCtrl->GetItemCount());
     m_statusBar->SetStatusText(strStatus, 2);
 
     // Balance total
     TRY_CRITICAL_BLOCK(cs_mapWallet)
         m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
 
-    m_listCtrl->OnPaint(event);
+    // Refresh other tabs periodically
+    static int64 nLastTabRefresh;
+    if (GetTime() > nLastTabRefresh + 30)
+    {
+        nLastTabRefresh = GetTime();
+        RefreshNewsTab();
+        RefreshMarketTab();
+        RefreshBgoldTab();
+    }
+
+    event.Skip();
 }
 
 void CrossThreadCall(wxCommandEvent& event)
@@ -829,8 +915,7 @@ void CMainFrame::OnMenuOptionsGenerate(wxCommandEvent& event)
             printf("Error: _beginthread(ThreadBitcoinMiner) failed\n");
 
     Refresh();
-    wxPaintEvent eventPaint;
-    AddPendingEvent(eventPaint);
+    Update();
 }
 
 void CMainFrame::OnMenuOptionsOptions(wxCommandEvent& event)
@@ -842,6 +927,12 @@ void CMainFrame::OnMenuOptionsOptions(wxCommandEvent& event)
 void CMainFrame::OnMenuHelpAbout(wxCommandEvent& event)
 {
     CAboutDialog dialog(this);
+    dialog.ShowModal();
+}
+
+void CMainFrame::OnMenuViewPeers(wxCommandEvent& event)
+{
+    CPeersDialog dialog(this);
     dialog.ShowModal();
 }
 
@@ -1239,12 +1330,6 @@ void COptionsDialog::OnButtonCancel(wxCommandEvent& event)
 CAboutDialog::CAboutDialog(wxWindow* parent) : CAboutDialogBase(parent)
 {
     m_staticTextVersion->SetLabel(strprintf("version 0.%d.%d Alpha", VERSION/100, VERSION%100));
-
-    // Workaround until upgrade to wxWidgets supporting UTF-8
-    wxString str = m_staticTextMain->GetLabel();
-    if (str.Find('Â') != wxNOT_FOUND)
-        str.Remove(str.Find('Â'), 1);
-    m_staticTextMain->SetLabel(str);
 }
 
 void CAboutDialog::OnButtonOK(wxCommandEvent& event)
@@ -1271,11 +1356,13 @@ CSendDialog::CSendDialog(wxWindow* parent, const wxString& strAddress) : CSendDi
     //// todo: should add a display of your balance for convenience
 
     // Set Icon
+#ifdef _WIN32
     wxBitmap bmpSend(wxT("send16"), wxBITMAP_TYPE_RESOURCE);
     bmpSend.SetMask(new wxMask(wxBitmap(wxT("send16masknoshadow"), wxBITMAP_TYPE_RESOURCE)));
     wxIcon iconSend;
     iconSend.CopyFromBitmap(bmpSend);
     SetIcon(iconSend);
+#endif
 
     wxCommandEvent event;
     OnTextAddress(event);
@@ -1528,8 +1615,6 @@ void CSendingDialog::OnPaint(wxPaintEvent& event)
 void CSendingDialog::Repaint()
 {
     Refresh();
-    wxPaintEvent event;
-    AddPendingEvent(event);
 }
 
 bool CSendingDialog::Status()
@@ -1881,11 +1966,13 @@ CAddressBookDialog::CAddressBookDialog(wxWindow* parent, const wxString& strInit
     m_listCtrl->SetFocus();
 
     // Set Icon
+#ifdef _WIN32
     wxBitmap bmpAddressBook(wxT("addressbook16"), wxBITMAP_TYPE_RESOURCE);
     bmpAddressBook.SetMask(new wxMask(wxBitmap(wxT("addressbook16mask"), wxBITMAP_TYPE_RESOURCE)));
     wxIcon iconAddressBook;
     iconAddressBook.CopyFromBitmap(bmpAddressBook);
     SetIcon(iconAddressBook);
+#endif
 
     // Fill listctrl with address book data
     CRITICAL_BLOCK(cs_mapKeys)
@@ -2645,7 +2732,7 @@ void CViewProductDialog::GetOrder(CWalletTx& wtx)
             strValue = m_textCtrlField[i]->GetValue().Trim();
         else
             strValue = m_choiceField[i]->GetStringSelection();
-        wtx.vOrderForm.push_back(make_pair(m_staticTextLabel[i]->GetLabel(), strValue));
+        wtx.vOrderForm.push_back(make_pair(string(m_staticTextLabel[i]->GetLabel().mb_str()), strValue));
     }
 }
 
@@ -2845,7 +2932,7 @@ class CMyApp: public wxApp
     virtual void OnFatalException();
 };
 
-IMPLEMENT_APP(CMyApp)
+wxIMPLEMENT_APP(CMyApp);
 
 bool CMyApp::OnInit()
 {
@@ -2884,22 +2971,18 @@ map<string, string> ParseParameters(int argc, char* argv[])
 
 bool CMyApp::OnInit2()
 {
-#ifdef _MSC_VER
-    // Turn off microsoft heap dump noise for now
-    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-    _CrtSetReportFile(_CRT_WARN, CreateFile("NUL", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0));
-#endif
-
     //// debug print
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("Bitcoin CMyApp::OnInit()\n");
+    printf("Bcash CMyApp::OnInit()\n");
 
     //
     // Limit to single instance per user
     // Required to protect the database files if we're going to keep deleting log.*
     //
-    wxString strMutexName = wxString("Bitcoin.") + getenv("HOMEPATH");
-    for (int i = 0; i < strMutexName.size(); i++)
+    const char* pszHome = getenv("HOME");
+    if (!pszHome) pszHome = "/tmp";
+    wxString strMutexName = wxString("Bcash.") + pszHome;
+    for (size_t i = 0; i < strMutexName.size(); i++)
         if (!isalnum(strMutexName[i]))
             strMutexName[i] = '.';
     wxSingleInstanceChecker* psingleinstancechecker = new wxSingleInstanceChecker(strMutexName);
@@ -2909,16 +2992,6 @@ bool CMyApp::OnInit2()
         unsigned int nStart = GetTime();
         loop
         {
-            // Show the previous instance and exit
-            HWND hwndPrev = FindWindow("wxWindowClassNR", "Bitcoin");
-            if (hwndPrev)
-            {
-                if (IsIconic(hwndPrev))
-                    ShowWindow(hwndPrev, SW_RESTORE);
-                SetForegroundWindow(hwndPrev);
-                return false;
-            }
-
             if (GetTime() > nStart + 60)
                 return false;
 
@@ -2965,28 +3038,25 @@ bool CMyApp::OnInit2()
     // Load data files
     //
     string strErrors;
-    int64 nStart, nEnd;
+    int64 nStart;
 
     printf("Loading addresses...\n");
-    QueryPerformanceCounter((LARGE_INTEGER*)&nStart);
+    nStart = GetTime();
     if (!LoadAddresses())
         strErrors += "Error loading addr.dat      \n";
-    QueryPerformanceCounter((LARGE_INTEGER*)&nEnd);
-    printf(" addresses   %20I64d\n", nEnd - nStart);
+    printf(" addresses   %ds\n", (int)(GetTime() - nStart));
 
     printf("Loading block index...\n");
-    QueryPerformanceCounter((LARGE_INTEGER*)&nStart);
+    nStart = GetTime();
     if (!LoadBlockIndex())
         strErrors += "Error loading blkindex.dat      \n";
-    QueryPerformanceCounter((LARGE_INTEGER*)&nEnd);
-    printf(" block index %20I64d\n", nEnd - nStart);
+    printf(" block index %ds\n", (int)(GetTime() - nStart));
 
     printf("Loading wallet...\n");
-    QueryPerformanceCounter((LARGE_INTEGER*)&nStart);
+    nStart = GetTime();
     if (!LoadWallet())
         strErrors += "Error loading wallet.dat      \n";
-    QueryPerformanceCounter((LARGE_INTEGER*)&nEnd);
-    printf(" wallet      %20I64d\n", nEnd - nStart);
+    printf(" wallet      %ds\n", (int)(GetTime() - nStart));
 
     printf("Done loading\n");
 
@@ -3143,14 +3213,119 @@ void MainFrameRepaint()
     if (pframeMain)
     {
         printf("MainFrameRepaint()\n");
-        wxPaintEvent event;
         pframeMain->Refresh();
-        pframeMain->AddPendingEvent(event);
     }
 }
 
 
 
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// CPeersDialog
+//
+
+CPeersDialog::CPeersDialog(wxWindow* parent) : wxDialog(parent, wxID_ANY, wxT("Connected Peers"), wxDefaultPosition, wxSize(650, 400), wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER)
+{
+    wxBoxSizer* bSizer = new wxBoxSizer(wxVERTICAL);
+
+    m_listCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT|wxLC_NO_SORT_HEADER);
+    m_listCtrl->InsertColumn(0, "Address",       wxLIST_FORMAT_LEFT, 180);
+    m_listCtrl->InsertColumn(1, "Direction",     wxLIST_FORMAT_LEFT,  80);
+    m_listCtrl->InsertColumn(2, "Version",       wxLIST_FORMAT_LEFT,  70);
+    m_listCtrl->InsertColumn(3, "Bytes Sent",    wxLIST_FORMAT_RIGHT, 100);
+    m_listCtrl->InsertColumn(4, "Bytes Recv",    wxLIST_FORMAT_RIGHT, 100);
+    bSizer->Add(m_listCtrl, 1, wxEXPAND|wxALL, 5);
+
+    wxBoxSizer* bSizerButtons = new wxBoxSizer(wxHORIZONTAL);
+    m_buttonAddPeer = new wxButton(this, wxID_ANY, wxT("&Add Peer..."));
+    m_buttonDisconnect = new wxButton(this, wxID_ANY, wxT("&Disconnect"));
+    m_buttonRefresh = new wxButton(this, wxID_ANY, wxT("&Refresh"));
+    wxButton* buttonClose = new wxButton(this, wxID_CANCEL, wxT("Close"));
+
+    bSizerButtons->Add(m_buttonAddPeer, 0, wxALL, 5);
+    bSizerButtons->Add(m_buttonDisconnect, 0, wxALL, 5);
+    bSizerButtons->Add(m_buttonRefresh, 0, wxALL, 5);
+    bSizerButtons->AddStretchSpacer();
+    bSizerButtons->Add(buttonClose, 0, wxALL, 5);
+    bSizer->Add(bSizerButtons, 0, wxEXPAND, 5);
+
+    SetSizer(bSizer);
+    Layout();
+
+    m_buttonAddPeer->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonAddPeer), NULL, this);
+    m_buttonDisconnect->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonDisconnect), NULL, this);
+    m_buttonRefresh->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonRefresh), NULL, this);
+    buttonClose->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonClose), NULL, this);
+
+    RefreshPeerList();
+}
+
+void CPeersDialog::RefreshPeerList()
+{
+    m_listCtrl->DeleteAllItems();
+    CRITICAL_BLOCK(cs_vNodes)
+    {
+        for (unsigned int i = 0; i < vNodes.size(); i++)
+        {
+            CNode* pnode = vNodes[i];
+            int nIndex = m_listCtrl->InsertItem(i, pnode->addr.ToString().c_str());
+            m_listCtrl->SetItem(nIndex, 1, pnode->fInbound ? "Inbound" : "Outbound");
+            m_listCtrl->SetItem(nIndex, 2, strprintf("%d", pnode->nVersion));
+            m_listCtrl->SetItem(nIndex, 3, strprintf("%d", (int)pnode->vSend.size()));
+            m_listCtrl->SetItem(nIndex, 4, strprintf("%d", (int)pnode->vRecv.size()));
+        }
+    }
+}
+
+void CPeersDialog::OnButtonAddPeer(wxCommandEvent& event)
+{
+    CGetTextFromUserDialog dialog(this, "Add Peer", "Enter IP address (e.g. 123.45.6.7:8333):");
+    if (!dialog.ShowModal())
+        return;
+    string strAddress = dialog.GetValue();
+    if (strAddress.empty())
+        return;
+    CAddress addr(strAddress.c_str());
+    ConnectNode(addr);
+    Sleep(500);
+    RefreshPeerList();
+}
+
+void CPeersDialog::OnButtonDisconnect(wxCommandEvent& event)
+{
+    int nIndex = GetSelection(m_listCtrl);
+    if (nIndex < 0)
+        return;
+    wxString strAddr = GetItemText(m_listCtrl, nIndex, 0);
+    CRITICAL_BLOCK(cs_vNodes)
+    {
+        for (unsigned int i = 0; i < vNodes.size(); i++)
+        {
+            CNode* pnode = vNodes[i];
+            if (pnode->addr.ToString() == (string)strAddr)
+            {
+                pnode->fDisconnect = true;
+                break;
+            }
+        }
+    }
+    Sleep(500);
+    RefreshPeerList();
+}
+
+void CPeersDialog::OnButtonRefresh(wxCommandEvent& event)
+{
+    RefreshPeerList();
+}
+
+void CPeersDialog::OnButtonClose(wxCommandEvent& event)
+{
+    EndModal(wxID_OK);
+}
 
 
 
