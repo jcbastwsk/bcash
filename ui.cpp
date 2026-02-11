@@ -3035,23 +3035,55 @@ bool CMyApp::OnInit2()
     }
 
     //
+    // Splash screen
+    //
+    wxFrame* pSplash = new wxFrame(NULL, wxID_ANY, wxEmptyString,
+        wxDefaultPosition, wxSize(320, 100),
+        wxSTAY_ON_TOP | wxFRAME_NO_TASKBAR | wxBORDER_SIMPLE);
+    pSplash->SetBackgroundColour(wxColour(255, 255, 255));
+    wxBoxSizer* pSizer = new wxBoxSizer(wxVERTICAL);
+    wxStaticText* pSplashTitle = new wxStaticText(pSplash, wxID_ANY, "Bcash",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
+    pSplashTitle->SetFont(wxFont(16, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
+    wxStaticText* pSplashStatus = new wxStaticText(pSplash, wxID_ANY, "Starting...",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
+    pSizer->AddStretchSpacer();
+    pSizer->Add(pSplashTitle, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT, 20);
+    pSizer->Add(pSplashStatus, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxTOP, 10);
+    pSizer->AddStretchSpacer();
+    pSplash->SetSizer(pSizer);
+    pSplash->CentreOnScreen();
+    pSplash->Show();
+    pSplash->Update();
+    wxYield();
+
+    //
     // Load data files
     //
     string strErrors;
     int64 nStart;
 
+    pSplashStatus->SetLabel("Loading addresses...");
+    pSplash->Update();
+    wxYield();
     printf("Loading addresses...\n");
     nStart = GetTime();
     if (!LoadAddresses())
         strErrors += "Error loading addr.dat      \n";
     printf(" addresses   %ds\n", (int)(GetTime() - nStart));
 
+    pSplashStatus->SetLabel("Loading block index...");
+    pSplash->Update();
+    wxYield();
     printf("Loading block index...\n");
     nStart = GetTime();
     if (!LoadBlockIndex())
         strErrors += "Error loading blkindex.dat      \n";
     printf(" block index %ds\n", (int)(GetTime() - nStart));
 
+    pSplashStatus->SetLabel("Loading wallet...");
+    pSplash->Update();
+    wxYield();
     printf("Loading wallet...\n");
     nStart = GetTime();
     if (!LoadWallet())
@@ -3099,6 +3131,8 @@ bool CMyApp::OnInit2()
     //
     // Create the main frame window
     //
+    pSplash->Destroy();
+    wxYield();
     {
         pframeMain = new CMainFrame(NULL);
         pframeMain->Show();
