@@ -13,6 +13,11 @@
 #include <memory.h>
 #include "sha.h"
 
+// ARM64 hardware SHA-256 (implemented in sha256_arm64.cpp)
+#if defined(__aarch64__) && defined(__ARM_FEATURE_SHA2)
+extern "C" void SHA256_Transform_ARM(uint32_t *state, const uint32_t *data);
+#endif
+
 namespace CryptoPP
 {
 
@@ -140,6 +145,10 @@ static const word32 SHA256_K[64] = {
 
 void SHA256::Transform(word32 *state, const word32 *data)
 {
+#if defined(__aarch64__) && defined(__ARM_FEATURE_SHA2)
+    SHA256_Transform_ARM((uint32_t*)state, (uint32_t*)data);
+    return;
+#endif
     word32 W[16];
     word32 T[8];
     /* Copy context->state[] to working vars */

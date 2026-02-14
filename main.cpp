@@ -6,11 +6,15 @@
 #include "headers.h"
 #include "sha.h"
 #include "bgold.h"
+#include "cluster.h"
 
 #ifndef _WIN32
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
+
+#include <thread>
+#include <atomic>
 
 
 
@@ -2486,6 +2490,21 @@ bool BcashMiner()
         unsigned int nBlocks0 = FormatHashBlocks(&tmp.block, sizeof(tmp.block));
         unsigned int nBlocks1 = FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
 
+        // Midstate optimization: pre-compute SHA-256 state after first 64 bytes
+        // of the 80-byte header. Only the last 16 bytes (nTime, nBits, nNonce)
+        // change between nonce attempts, so we hash the first block once.
+        unsigned int midstate[8];
+        {
+            CryptoPP::SHA256::InitState(midstate);
+            unsigned int pbuf[16];
+            unsigned int* pinput = (unsigned int*)&tmp.block;
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 16; i++)
+                    pbuf[i] = ByteReverse(pinput[i]);
+            else
+                memcpy(pbuf, pinput, 64);
+            CryptoPP::SHA256::Transform(midstate, pbuf);
+        }
 
         //
         // Search
@@ -2495,7 +2514,22 @@ bool BcashMiner()
         uint256 hash;
         loop
         {
-            BlockSHA256(&tmp.block, nBlocks0, &tmp.hash1);
+            // Use midstate: only hash the second block (bytes 64-127)
+            unsigned int hashbuf[8];
+            memcpy(hashbuf, midstate, sizeof(midstate));
+            unsigned int* pinput = (unsigned int*)&tmp.block;
+            unsigned int pbuf[16];
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 16; i++)
+                    pbuf[i] = ByteReverse(pinput[16 + i]);
+            else
+                memcpy(pbuf, pinput + 16, 64);
+            CryptoPP::SHA256::Transform(hashbuf, pbuf);
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 8; i++)
+                    hashbuf[i] = ByteReverse(hashbuf[i]);
+            memcpy(&tmp.hash1, hashbuf, 32);
+
             BlockSHA256(&tmp.hash1, nBlocks1, &hash);
 
             // 21e8 merge mining: check single-SHA-256 for bgold pattern
@@ -2578,11 +2612,306 @@ bool BcashMiner()
 }
 
 
+//
+// Multi-threaded mining wrapper
+// Spawns nMiningThreads threads, each searching a portion of the nonce space
+//
+struct MinerThreadArg
+{
+    int nThread;
+    int nTotalThreads;
+};
 
+static std::atomic<unsigned int> nTotalHashCount(0);
+static unsigned int nMiningStartTime = 0;
 
+void MinerThread(void* parg)
+{
+    MinerThreadArg* arg = (MinerThreadArg*)parg;
+    int nThread = arg->nThread;
+    int nTotal = arg->nTotalThreads;
+    delete arg;
 
+    printf("Mining thread %d/%d started\n", nThread + 1, nTotal);
+#ifndef _WIN32
+    nice(19);
+#endif
 
+    CKey key;
+    key.MakeNewKey();
+    CBigNum bnExtraNonce = 0;
+    while (fGenerateBcash)
+    {
+        Sleep(50);
+        if (fShutdown) return;
+        while (vNodes.empty() && !fSoloMine)
+        {
+            Sleep(1000);
+            if (fShutdown) return;
+        }
 
+        unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
+        CBlockIndex* pindexPrev = pindexBest;
+        unsigned int nBits = GetNextWorkRequired(pindexPrev);
+
+        CTransaction txNew;
+        txNew.vin.resize(1);
+        txNew.vin[0].prevout.SetNull();
+        txNew.vin[0].scriptSig << nBits << ++bnExtraNonce;
+        txNew.vout.resize(1);
+        txNew.vout[0].scriptPubKey << key.GetPubKey() << OP_CHECKSIG;
+
+        // Bgold merge-mining
+        CBgoldBlock bgoldBlock;
+        CRITICAL_BLOCK(cs_bgold)
+        {
+            bgoldBlock.hashPrevBgoldBlock = hashBestBgoldBlock;
+            bgoldBlock.nHeight = nBgoldHeight + 1;
+        }
+        bgoldBlock.nTime = GetAdjustedTime();
+        bgoldBlock.vchPubKey = key.GetPubKey();
+
+        CTxOut txoutBgold;
+        txoutBgold.nValue = 0;
+        txoutBgold.scriptPubKey = CreateBgoldCommitment(uint256(0));
+        txNew.vout.push_back(txoutBgold);
+
+        auto_ptr<CBlock> pblock(new CBlock());
+        if (!pblock.get())
+            return;
+
+        pblock->vtx.push_back(txNew);
+
+        int64 nFees = 0;
+        CRITICAL_BLOCK(cs_main)
+        CRITICAL_BLOCK(cs_mapTransactions)
+        {
+            CTxDB txdb("r");
+            map<uint256, CTxIndex> mapTestPool;
+            vector<char> vfAlreadyAdded(mapTransactions.size());
+            bool fFoundSomething = true;
+            unsigned int nBlockSize = 0;
+            while (fFoundSomething && nBlockSize < MAX_SIZE/2)
+            {
+                fFoundSomething = false;
+                unsigned int n = 0;
+                for (map<uint256, CTransaction>::iterator mi = mapTransactions.begin(); mi != mapTransactions.end(); ++mi, ++n)
+                {
+                    if (vfAlreadyAdded[n])
+                        continue;
+                    CTransaction& tx = (*mi).second;
+                    if (tx.IsCoinBase() || !tx.IsFinal())
+                        continue;
+                    int64 nMinFee = tx.GetMinFee(pblock->vtx.size() < 100);
+                    map<uint256, CTxIndex> mapTestPoolTmp(mapTestPool);
+                    if (!tx.ConnectInputs(txdb, mapTestPoolTmp, CDiskTxPos(1,1,1), 0, nFees, false, true, nMinFee))
+                        continue;
+                    swap(mapTestPool, mapTestPoolTmp);
+                    pblock->vtx.push_back(tx);
+                    nBlockSize += ::GetSerializeSize(tx, SER_NETWORK);
+                    vfAlreadyAdded[n] = true;
+                    fFoundSomething = true;
+                }
+            }
+        }
+        pblock->nBits = nBits;
+        pblock->vtx[0].vout[0].nValue = pblock->GetBlockValue(nFees);
+
+        if (nThread == 0)
+            printf("\n\nMining height %d with %d threads, %d tx in block\n",
+                nBestHeight + 1, nTotal, (int)pblock->vtx.size());
+
+        struct unnamed1
+        {
+            struct unnamed2
+            {
+                int nVersion;
+                uint256 hashPrevBlock;
+                uint256 hashMerkleRoot;
+                unsigned int nTime;
+                unsigned int nBits;
+                unsigned int nNonce;
+            }
+            block;
+            unsigned char pchPadding0[64];
+            uint256 hash1;
+            unsigned char pchPadding1[64];
+        }
+        tmp;
+
+        tmp.block.nVersion       = pblock->nVersion;
+        tmp.block.hashPrevBlock  = pblock->hashPrevBlock  = (pindexPrev ? pindexPrev->GetBlockHash() : 0);
+        tmp.block.hashMerkleRoot = pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+        tmp.block.nTime          = pblock->nTime          = max((pindexPrev ? pindexPrev->GetMedianTimePast()+1 : 0), GetAdjustedTime());
+        tmp.block.nBits          = pblock->nBits          = nBits;
+        tmp.block.nNonce         = pblock->nNonce         = 1;
+
+        unsigned int nBlocks1 = FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
+        FormatHashBlocks(&tmp.block, sizeof(tmp.block));
+
+        // Midstate optimization
+        unsigned int midstate[8];
+        {
+            CryptoPP::SHA256::InitState(midstate);
+            unsigned int pbuf[16];
+            unsigned int* pinput = (unsigned int*)&tmp.block;
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 16; i++)
+                    pbuf[i] = ByteReverse(pinput[i]);
+            else
+                memcpy(pbuf, pinput, 64);
+            CryptoPP::SHA256::Transform(midstate, pbuf);
+        }
+
+        // Calculate this thread's nonce range
+        NonceRange nodeRange = GetLocalNonceRange(nClusterNodes + 1, 0);
+        NonceRange threadRange = GetThreadNonceRange(nodeRange, nThread, nTotal);
+        tmp.block.nNonce = threadRange.nStart;
+
+        unsigned int nStart = GetTime();
+        nMiningStartTime = nStart;
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hash;
+        fBlockFound = false;
+
+        loop
+        {
+            // Use midstate optimization
+            unsigned int hashbuf[8];
+            memcpy(hashbuf, midstate, sizeof(midstate));
+            unsigned int* pinput = (unsigned int*)&tmp.block;
+            unsigned int pbuf[16];
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 16; i++)
+                    pbuf[i] = ByteReverse(pinput[16 + i]);
+            else
+                memcpy(pbuf, pinput + 16, 64);
+            CryptoPP::SHA256::Transform(hashbuf, pbuf);
+            if (*(char*)&detectlittleendian != 0)
+                for (int i = 0; i < 8; i++)
+                    hashbuf[i] = ByteReverse(hashbuf[i]);
+            memcpy(&tmp.hash1, hashbuf, 32);
+
+            BlockSHA256(&tmp.hash1, nBlocks1, &hash);
+
+            if (Has21e8Pattern(tmp.hash1))
+                Check21e8MinerHash(tmp.hash1, key.GetPubKey(), tmp.block.nNonce);
+
+            nTotalHashCount++;
+
+            if (hash <= hashTarget)
+            {
+                fBlockFound = true;
+                pblock->nNonce = tmp.block.nNonce;
+                assert(hash == pblock->GetHash());
+
+                printf("\n");
+                printf("========================================\n");
+                printf("  BLOCK FOUND by thread %d!  Height: %d\n", nThread, nBestHeight + 1);
+                printf("  Hash:   %s\n", hash.GetHex().c_str());
+                printf("  Target: %s\n", hashTarget.GetHex().c_str());
+                printf("  Reward: %s BCASH\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+                printf("  Nonce:  %u\n", tmp.block.nNonce);
+                printf("========================================\n\n");
+
+                CRITICAL_BLOCK(cs_main)
+                {
+                    if (!AddKey(key))
+                        return;
+                    key.MakeNewKey();
+                    if (!ProcessBlock(NULL, pblock.release()))
+                        printf("ERROR in MinerThread, ProcessBlock, block not accepted\n");
+                }
+
+                Sleep(500);
+                break;
+            }
+
+            if ((++tmp.block.nNonce & 0x3ffff) == 0)
+            {
+                if (nThread == 0)
+                {
+                    unsigned int nElapsed = GetTime() - nStart;
+                    if (nElapsed > 0)
+                    {
+                        double dHashesPerSec = (double)nTotalHashCount / nElapsed;
+                        dLocalHashrate = dHashesPerSec;
+
+                        // Calculate cluster hashrate
+                        double dCluster = dHashesPerSec;
+                        CRITICAL_BLOCK(cs_cluster)
+                        {
+                            for (size_t ci = 0; ci < vClusterPeers.size(); ci++)
+                                dCluster += vClusterPeers[ci].hashrate;
+                            dClusterHashrate = dCluster;
+                        }
+
+                        char szRate[64];
+                        if (dHashesPerSec >= 1e9)
+                            snprintf(szRate, sizeof(szRate), "%.2f GH/s", dHashesPerSec / 1e9);
+                        else if (dHashesPerSec >= 1e6)
+                            snprintf(szRate, sizeof(szRate), "%.2f MH/s", dHashesPerSec / 1e6);
+                        else if (dHashesPerSec >= 1e3)
+                            snprintf(szRate, sizeof(szRate), "%.2f KH/s", dHashesPerSec / 1e3);
+                        else
+                            snprintf(szRate, sizeof(szRate), "%.0f H/s", dHashesPerSec);
+
+                        if (nClusterNodes > 0)
+                        {
+                            char szCluster[64];
+                            if (dCluster >= 1e9)
+                                snprintf(szCluster, sizeof(szCluster), "%.2f GH/s", dCluster / 1e9);
+                            else if (dCluster >= 1e6)
+                                snprintf(szCluster, sizeof(szCluster), "%.2f MH/s", dCluster / 1e6);
+                            else
+                                snprintf(szCluster, sizeof(szCluster), "%.2f KH/s", dCluster / 1e3);
+
+                            printf("\r  Mining height %d | Local: %s (%d threads) | Cluster: %s (%d nodes) | nonce 0x%08x   ",
+                                nBestHeight + 1, szRate, nTotal, szCluster, nClusterNodes + 1, tmp.block.nNonce);
+                        }
+                        else
+                        {
+                            printf("\r  Mining height %d | %s (%d threads) | nonce 0x%08x   ",
+                                nBestHeight + 1, szRate, nTotal, tmp.block.nNonce);
+                        }
+                        fflush(stdout);
+                    }
+                }
+
+                if (fShutdown) return;
+                if (fBlockFound) break;
+                if (tmp.block.nNonce >= threadRange.nEnd)
+                    break;
+                if (pindexPrev != pindexBest)
+                    break;
+                if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+                    break;
+                if (!fGenerateBcash)
+                    break;
+                tmp.block.nTime = pblock->nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
+            }
+        }
+    }
+}
+
+// Launch multi-threaded mining
+void StartMultiMiner()
+{
+    if (nMiningThreads <= 0)
+    {
+        int nCores = sysconf(_SC_NPROCESSORS_ONLN);
+        nMiningThreads = max(1, nCores / 2);
+    }
+
+    printf("Starting %d mining threads\n", nMiningThreads);
+    for (int i = 0; i < nMiningThreads; i++)
+    {
+        MinerThreadArg* arg = new MinerThreadArg();
+        arg->nThread = i;
+        arg->nTotalThreads = nMiningThreads;
+        std::thread(MinerThread, (void*)arg).detach();
+    }
+}
 
 
 

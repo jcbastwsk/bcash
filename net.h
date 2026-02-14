@@ -435,7 +435,8 @@ extern bool fClient;
 extern uint64 nLocalServices;
 extern CAddress addrLocalHost;
 extern CNode* pnodeLocalHost;
-extern bool fShutdown;
+#include <atomic>
+extern std::atomic<bool> fShutdown;
 extern std::array<bool, 10> vfThreadRunning;
 extern vector<CNode*> vNodes;
 extern CCriticalSection cs_vNodes;
@@ -447,6 +448,7 @@ extern CCriticalSection cs_mapRelay;
 extern map<CInv, int64> mapAlreadyAskedFor;
 extern CAddress addrProxy;
 extern vector<string> vAddNodes;
+extern bool fUseIRC;
 
 
 

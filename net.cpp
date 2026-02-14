@@ -28,12 +28,6 @@ static const unsigned int hardcoded_seeds[] = {
 };
 static const unsigned int nHardcodedSeedCount = 0; // set to actual count when seeds are added
 
-// Pthread wrapper functions to convert void(*)(void*) to void*(*)(void*)
-static void* ThreadDNSSeedsWrapper(void* parg) { ThreadDNSSeeds(parg); return NULL; }
-static void* ThreadIRCSeedWrapper(void* parg) { ThreadIRCSeed(parg); return NULL; }
-static void* ThreadSocketHandlerWrapper(void* parg) { ThreadSocketHandler(parg); return NULL; }
-static void* ThreadOpenConnectionsWrapper(void* parg) { ThreadOpenConnections(parg); return NULL; }
-static void* ThreadMessageHandlerWrapper(void* parg) { ThreadMessageHandler(parg); return NULL; }
 
 
 
@@ -46,7 +40,7 @@ uint64 nLocalServices = (fClient ? 0 : NODE_NETWORK);
 CAddress addrLocalHost(0, DEFAULT_PORT, nLocalServices);
 CNode nodeLocalHost(INVALID_SOCKET, CAddress("127.0.0.1", nLocalServices));
 CNode* pnodeLocalHost = &nodeLocalHost;
-bool fShutdown = false;
+std::atomic<bool> fShutdown(false);
 std::array<bool, 10> vfThreadRunning;
 vector<CNode*> vNodes;
 CCriticalSection cs_vNodes;
@@ -61,6 +55,7 @@ map<CInv, int64> mapAlreadyAskedFor;
 
 CAddress addrProxy;
 vector<string> vAddNodes;
+bool fUseIRC = false;
 
 bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet)
 {
@@ -393,19 +388,22 @@ void CNode::Disconnect()
 void ThreadSocketHandler(void* parg)
 {
     IMPLEMENT_RANDOMIZE_STACK(ThreadSocketHandler(parg));
-
-    loop
+    try
     {
-        vfThreadRunning[0] = true;
-        CheckForShutdown(0);
-        try
+        loop
         {
-            ThreadSocketHandler2(parg);
+            vfThreadRunning[0] = true;
+            CheckForShutdown(0);
+            try
+            {
+                ThreadSocketHandler2(parg);
+            }
+            CATCH_PRINT_EXCEPTION("ThreadSocketHandler()")
+            vfThreadRunning[0] = false;
+            Sleep(5000);
         }
-        CATCH_PRINT_EXCEPTION("ThreadSocketHandler()")
-        vfThreadRunning[0] = false;
-        Sleep(5000);
     }
+    catch (ShutdownException&) { vfThreadRunning[0] = false; }
 }
 
 void ThreadSocketHandler2(void* parg)
@@ -671,19 +669,22 @@ void ThreadSocketHandler2(void* parg)
 void ThreadOpenConnections(void* parg)
 {
     IMPLEMENT_RANDOMIZE_STACK(ThreadOpenConnections(parg));
-
-    loop
+    try
     {
-        vfThreadRunning[1] = true;
-        CheckForShutdown(1);
-        try
+        loop
         {
-            ThreadOpenConnections2(parg);
+            vfThreadRunning[1] = true;
+            CheckForShutdown(1);
+            try
+            {
+                ThreadOpenConnections2(parg);
+            }
+            CATCH_PRINT_EXCEPTION("ThreadOpenConnections()")
+            vfThreadRunning[1] = false;
+            Sleep(5000);
         }
-        CATCH_PRINT_EXCEPTION("ThreadOpenConnections()")
-        vfThreadRunning[1] = false;
-        Sleep(5000);
     }
+    catch (ShutdownException&) { vfThreadRunning[1] = false; }
 }
 
 void ThreadOpenConnections2(void* parg)
@@ -828,19 +829,22 @@ void ThreadOpenConnections2(void* parg)
 void ThreadMessageHandler(void* parg)
 {
     IMPLEMENT_RANDOMIZE_STACK(ThreadMessageHandler(parg));
-
-    loop
+    try
     {
-        vfThreadRunning[2] = true;
-        CheckForShutdown(2);
-        try
+        loop
         {
-            ThreadMessageHandler2(parg);
+            vfThreadRunning[2] = true;
+            CheckForShutdown(2);
+            try
+            {
+                ThreadMessageHandler2(parg);
+            }
+            CATCH_PRINT_EXCEPTION("ThreadMessageHandler()")
+            vfThreadRunning[2] = false;
+            Sleep(5000);
         }
-        CATCH_PRINT_EXCEPTION("ThreadMessageHandler()")
-        vfThreadRunning[2] = false;
-        Sleep(5000);
     }
+    catch (ShutdownException&) { vfThreadRunning[2] = false; }
 }
 
 void ThreadMessageHandler2(void* parg)
@@ -884,17 +888,20 @@ void ThreadMessageHandler2(void* parg)
 
 
 
-//// todo: start one thread per processor, use getenv("NUMBER_OF_PROCESSORS")
 void ThreadBcashMiner(void* parg)
 {
-    vfThreadRunning[3] = true;
-    CheckForShutdown(3);
     try
     {
-        bool fRet = BcashMiner();
-        printf("BcashMiner returned %s\n\n\n", fRet ? "true" : "false");
+        vfThreadRunning[3] = true;
+        CheckForShutdown(3);
+        try
+        {
+            bool fRet = BcashMiner();
+            printf("BcashMiner returned %s\n\n\n", fRet ? "true" : "false");
+        }
+        CATCH_PRINT_EXCEPTION("BcashMiner()")
     }
-    CATCH_PRINT_EXCEPTION("BcashMiner()")
+    catch (ShutdownException&) { }
     vfThreadRunning[3] = false;
 }
 
@@ -1079,58 +1086,21 @@ bool StartNode(string& strError)
     }
 
     // DNS seed discovery (try DNS seeds first, before IRC)
-    {
-        pthread_t thr;
-        if (pthread_create(&thr, NULL, ThreadDNSSeedsWrapper, NULL) != 0)
-            printf("Error: pthread_create(ThreadDNSSeeds) failed\n");
-        else
-            pthread_detach(thr);
-    }
+    std::thread(ThreadDNSSeeds, (void*)NULL).detach();
 
     // Get addresses from IRC and advertise ours
+    if (fUseIRC)
     {
-        pthread_t thr;
-        if (pthread_create(&thr, NULL, ThreadIRCSeedWrapper, NULL) != 0)
-            printf("Error: pthread_create(ThreadIRCSeed) failed\n");
-        else
-            pthread_detach(thr);
+        printf("IRC peer discovery enabled via -irc flag\n");
+        std::thread(ThreadIRCSeed, (void*)NULL).detach();
     }
 
     //
     // Start threads
     //
-    {
-        pthread_t thr;
-        if (pthread_create(&thr, NULL, ThreadSocketHandlerWrapper, new SOCKET(hListenSocket)) != 0)
-        {
-            strError = "Error: pthread_create(ThreadSocketHandler) failed";
-            printf("%s\n", strError.c_str());
-            return false;
-        }
-        pthread_detach(thr);
-    }
-
-    {
-        pthread_t thr;
-        if (pthread_create(&thr, NULL, ThreadOpenConnectionsWrapper, NULL) != 0)
-        {
-            strError = "Error: pthread_create(ThreadOpenConnections) failed";
-            printf("%s\n", strError.c_str());
-            return false;
-        }
-        pthread_detach(thr);
-    }
-
-    {
-        pthread_t thr;
-        if (pthread_create(&thr, NULL, ThreadMessageHandlerWrapper, NULL) != 0)
-        {
-            strError = "Error: pthread_create(ThreadMessageHandler) failed";
-            printf("%s\n", strError.c_str());
-            return false;
-        }
-        pthread_detach(thr);
-    }
+    std::thread(ThreadSocketHandler, (void*)new SOCKET(hListenSocket)).detach();
+    std::thread(ThreadOpenConnections, (void*)NULL).detach();
+    std::thread(ThreadMessageHandler, (void*)NULL).detach();
 
     return true;
 }
@@ -1140,8 +1110,14 @@ bool StopNode()
     printf("StopNode()\n");
     fShutdown = true;
     nTransactionsUpdated++;
-    while (count(vfThreadRunning.begin(), vfThreadRunning.end(), true))
+    int nTimeout = 10000;
+    while (count(vfThreadRunning.begin(), vfThreadRunning.end(), true) && nTimeout > 0)
+    {
         Sleep(10);
+        nTimeout -= 10;
+    }
+    if (nTimeout <= 0)
+        printf("StopNode: timed out waiting for threads to stop\n");
     Sleep(50);
 
 #ifdef _WIN32
@@ -1157,6 +1133,6 @@ void CheckForShutdown(int n)
     {
         if (n != -1)
             vfThreadRunning[n] = false;
-        pthread_exit(NULL);
+        throw ShutdownException();
     }
 }

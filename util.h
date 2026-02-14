@@ -47,6 +47,10 @@ typedef unsigned long long  uint64;
 #endif
 #endif
 
+// C++11 threading (used on all platforms)
+#include <thread>
+#include <mutex>
+
 // Compat defines for non-Windows (POSIX)
 #ifndef _WIN32
 typedef int SOCKET;
@@ -68,10 +72,8 @@ typedef int SOCKET;
 #define stricmp strcasecmp
 #define strlwr(s) ({ char* _p = (s); for (; *_p; ++_p) *_p = tolower(*_p); (s); })
 inline uintptr_t _beginthread(void (*func)(void*), unsigned, void* arg) {
-    pthread_t tid;
-    if (pthread_create(&tid, NULL, (void*(*)(void*))func, arg) != 0) return (uintptr_t)-1;
-    pthread_detach(tid);
-    return (uintptr_t)tid;
+    std::thread(func, arg).detach();
+    return 0;
 }
 #define ExitProcess(code) exit(code)
 #endif
@@ -162,40 +164,35 @@ public:
     for (CTryCriticalBlock criticalblock(cs); fcriticalblockonce && (fcriticalblockonce = criticalblock.Entered()) && (cs.pszFile=__FILE__, cs.nLine=__LINE__, true); fcriticalblockonce=false, cs.pszFile=NULL, cs.nLine=0)
 
 #else
-// POSIX: use pthread_mutex_t with PTHREAD_MUTEX_RECURSIVE
+// POSIX: use std::recursive_mutex (C++11)
 class CCriticalSection
 {
 protected:
-    pthread_mutex_t mutex;
+    std::recursive_mutex mutex;
 public:
     char* pszFile;
     int nLine;
     explicit CCriticalSection()
     {
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&mutex, &attr);
-        pthread_mutexattr_destroy(&attr);
         pszFile = NULL;
         nLine = 0;
     }
-    ~CCriticalSection() { pthread_mutex_destroy(&mutex); }
-    void Enter() { pthread_mutex_lock(&mutex); }
-    void Leave() { pthread_mutex_unlock(&mutex); }
-    bool TryEnter() { return pthread_mutex_trylock(&mutex) == 0; }
-    pthread_mutex_t* operator&() { return &mutex; }
+    ~CCriticalSection() { }
+    void Enter() { mutex.lock(); }
+    void Leave() { mutex.unlock(); }
+    bool TryEnter() { return mutex.try_lock(); }
+    std::recursive_mutex* operator&() { return &mutex; }
 };
 
 // Automatically leave critical section when leaving block, needed for exception safety
 class CCriticalBlock
 {
 protected:
-    pthread_mutex_t* pmutex;
+    std::recursive_mutex* pmutex;
 public:
-    CCriticalBlock(pthread_mutex_t& mutexIn) { pmutex = &mutexIn; pthread_mutex_lock(pmutex); }
-    CCriticalBlock(CCriticalSection& csIn) { pmutex = &csIn; pthread_mutex_lock(pmutex); }
-    ~CCriticalBlock() { pthread_mutex_unlock(pmutex); }
+    CCriticalBlock(std::recursive_mutex& mutexIn) { pmutex = &mutexIn; pmutex->lock(); }
+    CCriticalBlock(CCriticalSection& csIn) { pmutex = &csIn; pmutex->lock(); }
+    ~CCriticalBlock() { pmutex->unlock(); }
 };
 
 // WARNING: This will catch continue and break!
@@ -209,11 +206,11 @@ public:
 class CTryCriticalBlock
 {
 protected:
-    pthread_mutex_t* pmutex;
+    std::recursive_mutex* pmutex;
 public:
-    CTryCriticalBlock(pthread_mutex_t& mutexIn) { pmutex = (pthread_mutex_trylock(&mutexIn) == 0 ? &mutexIn : NULL); }
-    CTryCriticalBlock(CCriticalSection& csIn) { pmutex = (pthread_mutex_trylock(&csIn) == 0 ? &csIn : NULL); }
-    ~CTryCriticalBlock() { if (pmutex) pthread_mutex_unlock(pmutex); }
+    CTryCriticalBlock(std::recursive_mutex& mutexIn) { pmutex = (mutexIn.try_lock() ? &mutexIn : NULL); }
+    CTryCriticalBlock(CCriticalSection& csIn) { pmutex = (csIn.TryEnter() ? &csIn : NULL); }
+    ~CTryCriticalBlock() { if (pmutex) pmutex->unlock(); }
     bool Entered() { return pmutex != NULL; }
 };
 
@@ -394,7 +391,11 @@ inline void heapchk()
         }                                                           \
     }
 
+// Sentinel exception for clean thread exit on shutdown
+struct ShutdownException {};
+
 #define CATCH_PRINT_EXCEPTION(pszFn)     \
+    catch (ShutdownException&) { throw; }\
     catch (std::exception& e) {          \
         PrintException(&e, (pszFn));     \
     } catch (...) {                      \

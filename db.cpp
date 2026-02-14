@@ -25,11 +25,9 @@ public:
     }
     ~CDBInit()
     {
-        if (fDbEnvInit)
-        {
-            dbenv.close(0);
-            fDbEnvInit = false;
-        }
+        // Do not close dbenv here — static destruction order is undefined
+        // and other threads may still be running. Explicit DBFlush(true)
+        // in StopNode() handles clean shutdown.
     }
 }
 instance_of_cdbinit;
@@ -66,8 +64,9 @@ CDB::CDB(const char* pszFile, const char* pszMode, bool fTxn) : pdb(NULL)
 
             dbenv.set_lg_dir(strLogDir.c_str());
             dbenv.set_lg_max(10000000);
-            dbenv.set_lk_max_locks(10000);
-            dbenv.set_lk_max_objects(10000);
+            dbenv.set_lk_max_locks(100000);
+            dbenv.set_lk_max_objects(100000);
+            dbenv.set_cachesize(0, 64 * 1024 * 1024, 1);
             dbenv.set_errfile(fopen("db.log", "a")); /// debug
             ///dbenv.log_set_config(DB_LOG_AUTO_REMOVE, 1); /// causes corruption
             ret = dbenv.open(strAppDir.c_str(),
@@ -86,7 +85,6 @@ CDB::CDB(const char* pszFile, const char* pszMode, bool fTxn) : pdb(NULL)
         }
 
         strFile = pszFile;
-        ++mapFileUseCount[strFile];
     }
 
     pdb = new Db(&dbenv, 0);
@@ -102,11 +100,12 @@ CDB::CDB(const char* pszFile, const char* pszMode, bool fTxn) : pdb(NULL)
     {
         delete pdb;
         pdb = NULL;
-        CRITICAL_BLOCK(cs_db)
-            --mapFileUseCount[strFile];
         strFile = "";
         throw runtime_error(strprintf("CDB() : can't open database file %s, error %d\n", pszFile, ret));
     }
+
+    CRITICAL_BLOCK(cs_db)
+        ++mapFileUseCount[strFile];
 
     if (fCreate && !Exists(string("version")))
         WriteVersion(VERSION);
@@ -121,14 +120,14 @@ void CDB::Close()
     if (!vTxn.empty())
         vTxn.front()->abort();
     vTxn.clear();
-    pdb->close(0);
-    delete pdb;
-    pdb = NULL;
-    dbenv.txn_checkpoint(0, 0, 0);
-
     CRITICAL_BLOCK(cs_db)
+    {
+        pdb->close(0);
+        delete pdb;
+        pdb = NULL;
+        dbenv.txn_checkpoint(0, 0, 0);
         --mapFileUseCount[strFile];
-
+    }
     RandAddSeed();
 }
 
@@ -139,7 +138,7 @@ void DBFlush(bool fShutdown)
     printf("DBFlush(%s)\n", fShutdown ? "true" : "false");
     CRITICAL_BLOCK(cs_db)
     {
-        dbenv.txn_checkpoint(0, 0, 0);
+        dbenv.txn_checkpoint(0, 0, fShutdown ? DB_FORCE : 0);
         map<string, int>::iterator mi = mapFileUseCount.begin();
         while (mi != mapFileUseCount.end())
         {

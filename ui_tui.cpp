@@ -8,6 +8,7 @@
 #include "sha.h"
 #include "rpc.h"
 #include "bgold.h"
+#include "cluster.h"
 #include <ncurses.h>
 
 // Stubs for GUI functions and data referenced by other code
@@ -18,7 +19,6 @@ map<string, string> mapAddressBook;
 bool fSoloMine = false;
 
 // Shutdown handling
-extern bool fShutdown;
 static volatile bool fRequestShutdown = false;
 
 void HandleSignal(int sig)
@@ -1664,16 +1664,22 @@ int main(int argc, char* argv[])
             fSoloMine = true;
         else if ((arg == "-addnode" || arg == "--addnode") && i + 1 < argc)
             vAddNodes.push_back(argv[++i]);
+        else if (arg == "-irc")
+            fUseIRC = true;
+        else if (arg == "-minthreads" && i + 1 < argc)
+            nMiningThreads = atoi(argv[++i]);
         else if (arg == "-help" || arg == "-h")
         {
             printf("Usage: bcash [options]\n");
             printf("Options:\n");
-            printf("  -nogenerate     Don't mine blocks\n");
-            printf("  -solo           Mine without peers (solo/bootstrap mode)\n");
-            printf("  -addnode <ip>   Add a peer node (can be used multiple times)\n");
-            printf("  -datadir <dir>  Data directory\n");
-            printf("  -debug          Enable debug output\n");
-            printf("  -help           This help message\n");
+            printf("  -nogenerate       Don't mine blocks\n");
+            printf("  -solo             Mine without peers (solo/bootstrap mode)\n");
+            printf("  -addnode <ip>     Add a peer node (can be used multiple times)\n");
+            printf("  -minthreads <n>   Number of mining threads (default: half of CPU cores)\n");
+            printf("  -irc              Enable IRC peer discovery (default: off)\n");
+            printf("  -datadir <dir>    Data directory\n");
+            printf("  -debug            Enable debug output\n");
+            printf("  -help             This help message\n");
             return 0;
         }
     }
@@ -1704,6 +1710,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Start mDNS cluster discovery
+    ClusterAdvertise(ntohs(DEFAULT_PORT));
+    ClusterDiscover();
+
     // Start RPC server
     {
         pthread_t thrRPC;
@@ -1714,15 +1724,10 @@ int main(int argc, char* argv[])
             pthread_detach(thrRPC);
     }
 
-    // Start miner thread
+    // Start multi-threaded miner
     if (fGenerateBcash)
     {
-        pthread_t thrMiner;
-        if (pthread_create(&thrMiner, NULL,
-            [](void* p) -> void* { ThreadBcashMiner(p); return NULL; }, NULL) != 0)
-            fprintf(stderr, "Warning: Failed to start miner\n");
-        else
-            pthread_detach(thrMiner);
+        StartMultiMiner();
     }
 
     // Signal handlers
@@ -1939,6 +1944,7 @@ int main(int argc, char* argv[])
 
     printf("Shutting down...\n");
     fShutdown = true;
+    ClusterStop();
     StopNode();
     DBFlush(true);
     printf("bcash stopped.\n");
