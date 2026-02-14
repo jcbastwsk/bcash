@@ -1,4 +1,4 @@
-# bcash
+# bnet
 
 A peer-to-peer electronic cash system forked from Bitcoin 0.01 by Satoshi Nakamoto.
 
