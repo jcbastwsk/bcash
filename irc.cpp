@@ -4,7 +4,7 @@
 
 #include "headers.h"
 
-
+#include <netdb.h>
 
 
 #pragma pack(1)
@@ -141,18 +141,57 @@ bool RecvUntil(SOCKET hSocket, const char* psz1, const char* psz2=NULL, const ch
 
 bool fRestartIRCSeed = false;
 
+// IRC servers to try for peer discovery
+static const struct {
+    const char* hostname;
+    const char* port;
+} irc_servers[] = {
+    { "irc.libera.chat", "6667" },
+    { "chat.freenode.net", "6667" },
+};
+static const int nIRCServers = sizeof(irc_servers) / sizeof(irc_servers[0]);
+
 void ThreadIRCSeed(void* parg)
 {
     int nRetryDelay = 10; // seconds
     loop
     {
-        struct hostent* phostent = gethostbyname("chat.freenode.net");
-        CAddress addrConnect(*(u_long*)phostent->h_addr_list[0], htons(6667));
-
-        SOCKET hSocket;
-        if (!ConnectSocket(addrConnect, hSocket))
+        // Try each IRC server in order
+        bool fConnected = false;
+        SOCKET hSocket = INVALID_SOCKET;
+        for (int s = 0; s < nIRCServers && !fConnected; s++)
         {
-            printf("IRC connect failed\n");
+            printf("IRC: resolving %s\n", irc_servers[s].hostname);
+
+            struct addrinfo hints, *res = NULL;
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_STREAM;
+
+            int err = getaddrinfo(irc_servers[s].hostname, irc_servers[s].port, &hints, &res);
+            if (err != 0 || res == NULL)
+            {
+                printf("IRC: failed to resolve %s: %s\n", irc_servers[s].hostname, gai_strerror(err));
+                if (res) freeaddrinfo(res);
+                continue;
+            }
+
+            struct sockaddr_in* sinp = (struct sockaddr_in*)res->ai_addr;
+            CAddress addrConnect(sinp->sin_addr.s_addr, sinp->sin_port);
+            freeaddrinfo(res);
+
+            if (!ConnectSocket(addrConnect, hSocket))
+            {
+                printf("IRC: connect to %s failed\n", irc_servers[s].hostname);
+                continue;
+            }
+            printf("IRC: connected to %s\n", irc_servers[s].hostname);
+            fConnected = true;
+        }
+
+        if (!fConnected)
+        {
+            printf("IRC: all servers failed\n");
             goto retry;
         }
 

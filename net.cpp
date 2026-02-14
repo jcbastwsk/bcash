@@ -157,9 +157,9 @@ bool GetMyExternalIP(unsigned int& ipRet)
 
 
 
-bool AddAddress(CAddrDB& addrdb, const CAddress& addr)
+bool AddAddress(CAddrDB& addrdb, const CAddress& addr, bool fForce)
 {
-    if (!addr.IsRoutable())
+    if (!fForce && !addr.IsRoutable())
         return false;
     if (addr.ip == addrLocalHost.ip)
         return false;
@@ -705,6 +705,20 @@ void ThreadOpenConnections2(void* parg)
         vfThreadRunning[1] = true;
         CheckForShutdown(1);
 
+        // Connect to manually added nodes (bypass IsRoutable for LAN peers)
+        for (unsigned int i = 0; i < vAddNodes.size(); i++)
+        {
+            CAddress addr(vAddNodes[i].c_str(), NODE_NETWORK);
+            if (addr.ip && addr.ip != addrLocalHost.ip && !FindNode(addr.ip))
+            {
+                CNode* pnode = ConnectNode(addr);
+                if (pnode)
+                {
+                    pnode->fNetworkNode = true;
+                    pnode->PushMessage("getaddr");
+                }
+            }
+        }
 
         // Make a list of unique class C's
         unsigned char pchIPCMask[4] = { 0xff, 0xff, 0xff, 0x00 };
@@ -900,12 +914,17 @@ void ThreadDNSSeeds(void* parg)
             return;
 
         printf("DNS seed: resolving %s\n", dns_seeds[i]);
-        struct hostent* pHostEnt = gethostbyname(dns_seeds[i]);
-        if (pHostEnt)
+        struct addrinfo hints, *res = NULL;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        int err = getaddrinfo(dns_seeds[i], NULL, &hints, &res);
+        if (err == 0 && res != NULL)
         {
-            for (int j = 0; pHostEnt->h_addr_list[j] != NULL; j++)
+            for (struct addrinfo* ai = res; ai != NULL; ai = ai->ai_next)
             {
-                CAddress addr(*(unsigned int*)pHostEnt->h_addr_list[j], DEFAULT_PORT, NODE_NETWORK);
+                struct sockaddr_in* sinp = (struct sockaddr_in*)ai->ai_addr;
+                CAddress addr(sinp->sin_addr.s_addr, DEFAULT_PORT, NODE_NETWORK);
                 if (addr.IsRoutable())
                 {
                     printf("DNS seed: found peer %s\n", addr.ToString().c_str());
@@ -914,10 +933,12 @@ void ThreadDNSSeeds(void* parg)
                         printf("  added to address database\n");
                 }
             }
+            freeaddrinfo(res);
         }
         else
         {
-            printf("DNS seed: failed to resolve %s\n", dns_seeds[i]);
+            printf("DNS seed: failed to resolve %s: %s\n", dns_seeds[i], gai_strerror(err));
+            if (res) freeaddrinfo(res);
         }
     }
 
@@ -962,17 +983,24 @@ bool StartNode(string& strError)
         printf("%s\n", strError.c_str());
         return false;
     }
-    struct hostent* pHostEnt = gethostbyname(pszHostName);
-    if (pHostEnt && pHostEnt->h_addr_list[0])
     {
-        addrLocalHost = CAddress(*(long*)(pHostEnt->h_addr_list[0]),
-                                 DEFAULT_PORT,
-                                 nLocalServices);
-    }
-    else
-    {
-        printf("Warning: gethostbyname failed, using INADDR_ANY for local address\n");
-        addrLocalHost = CAddress(INADDR_ANY, DEFAULT_PORT, nLocalServices);
+        struct addrinfo hints, *res = NULL;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        int err = getaddrinfo(pszHostName, NULL, &hints, &res);
+        if (err == 0 && res != NULL)
+        {
+            struct sockaddr_in* sinp = (struct sockaddr_in*)res->ai_addr;
+            addrLocalHost = CAddress(sinp->sin_addr.s_addr, DEFAULT_PORT, nLocalServices);
+            freeaddrinfo(res);
+        }
+        else
+        {
+            printf("Warning: getaddrinfo(%s) failed, using INADDR_ANY for local address\n", pszHostName);
+            if (res) freeaddrinfo(res);
+            addrLocalHost = CAddress(INADDR_ANY, DEFAULT_PORT, nLocalServices);
+        }
     }
     printf("addrLocalHost = %s\n", addrLocalHost.ToString().c_str());
 
@@ -1046,7 +1074,7 @@ bool StartNode(string& strError)
         {
             printf("Adding node: %s\n", addr.ToString().c_str());
             CAddrDB addrdb;
-            AddAddress(addrdb, addr);
+            AddAddress(addrdb, addr, true);
         }
     }
 

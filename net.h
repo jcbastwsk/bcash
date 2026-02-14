@@ -23,7 +23,7 @@ enum
 
 bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet);
 bool GetMyExternalIP(unsigned int& ipRet);
-bool AddAddress(CAddrDB& addrdb, const CAddress& addr);
+bool AddAddress(CAddrDB& addrdb, const CAddress& addr, bool fForce=false);
 CNode* FindNode(unsigned int ip);
 CNode* ConnectNode(CAddress addrConnect, int64 nTimeout=0);
 void AbandonRequests(void (*fn)(void*, CDataStream&), void* param1);

@@ -47,10 +47,10 @@ bool AdvertInsert(const CProduct& product)
         }
     }
 
-    //if (fNew)
-    //    NotifyProductAdded(hash);
-    //else if (fUpdated)
-    //    NotifyProductUpdated(hash);
+    if (fNew)
+        printf("Marketplace: new product listed %s\n", hash.ToString().substr(0,12).c_str());
+    else if (fUpdated)
+        printf("Marketplace: product updated %s\n", hash.ToString().substr(0,12).c_str());
 
     return (fNew || fUpdated);
 }
@@ -60,7 +60,7 @@ void AdvertErase(const CProduct& product)
     uint256 hash = product.GetHash();
     CRITICAL_BLOCK(cs_mapProducts)
         mapProducts.erase(hash);
-    //NotifyProductDeleted(hash);
+    printf("Marketplace: product removed %s\n", hash.ToString().substr(0,12).c_str());
 }
 
 

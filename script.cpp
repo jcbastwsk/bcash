@@ -202,6 +202,8 @@ bool EvalScript(const CScript& script, const CTransaction& txTo, unsigned int nI
             case OP_2DROP:
             {
                 // (x1 x2 -- )
+                if (stack.size() < 2)
+                    return false;
                 stack.pop_back();
                 stack.pop_back();
             }
