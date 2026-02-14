@@ -60,6 +60,7 @@ map<CInv, int64> mapAlreadyAskedFor;
 
 
 CAddress addrProxy;
+vector<string> vAddNodes;
 
 bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet)
 {
@@ -962,15 +963,17 @@ bool StartNode(string& strError)
         return false;
     }
     struct hostent* pHostEnt = gethostbyname(pszHostName);
-    if (!pHostEnt)
+    if (pHostEnt && pHostEnt->h_addr_list[0])
     {
-        strError = strprintf("Error: Unable to get IP address of this computer (gethostbyname returned error %d)", errno);
-        printf("%s\n", strError.c_str());
-        return false;
+        addrLocalHost = CAddress(*(long*)(pHostEnt->h_addr_list[0]),
+                                 DEFAULT_PORT,
+                                 nLocalServices);
     }
-    addrLocalHost = CAddress(*(long*)(pHostEnt->h_addr_list[0]),
-                             DEFAULT_PORT,
-                             nLocalServices);
+    else
+    {
+        printf("Warning: gethostbyname failed, using INADDR_ANY for local address\n");
+        addrLocalHost = CAddress(INADDR_ANY, DEFAULT_PORT, nLocalServices);
+    }
     printf("addrLocalHost = %s\n", addrLocalHost.ToString().c_str());
 
     // Create socket for listening for incoming connections
@@ -1033,6 +1036,18 @@ bool StartNode(string& strError)
     {
         addrIncoming = addrLocalHost;
         CWalletDB().WriteSetting("addrIncoming", addrIncoming);
+    }
+
+    // Add manually specified nodes (-addnode)
+    for (unsigned int i = 0; i < vAddNodes.size(); i++)
+    {
+        CAddress addr(vAddNodes[i].c_str(), NODE_NETWORK);
+        if (addr.ip)
+        {
+            printf("Adding node: %s\n", addr.ToString().c_str());
+            CAddrDB addrdb;
+            AddAddress(addrdb, addr);
+        }
     }
 
     // DNS seed discovery (try DNS seeds first, before IRC)

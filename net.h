@@ -428,6 +428,7 @@ extern deque<pair<int64, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
 extern map<CInv, int64> mapAlreadyAskedFor;
 extern CAddress addrProxy;
+extern vector<string> vAddNodes;
 
 
 

@@ -84,9 +84,11 @@ inline word16 ByteReverse(word16 value)
 
 inline word32 ByteReverse(word32 value)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
     __asm__ ("bswap %0" : "=r" (value) : "0" (value));
     return value;
+#elif defined(__GNUC__)
+    return __builtin_bswap32(value);
 #elif defined(CRYPTOPP_BYTESWAP_AVAILABLE)
     return bswap_32(value);
 #elif defined(__MWERKS__) && TARGET_CPU_PPC
@@ -109,6 +111,8 @@ inline word64 ByteReverse(word64 value)
 #if defined(__GNUC__) && defined(__x86_64__)
     __asm__ ("bswap %0" : "=r" (value) : "0" (value));
     return value;
+#elif defined(__GNUC__)
+    return __builtin_bswap64(value);
 #elif defined(CRYPTOPP_BYTESWAP_AVAILABLE)
     return bswap_64(value);
 #elif defined(_MSC_VER) && _MSC_VER >= 1300

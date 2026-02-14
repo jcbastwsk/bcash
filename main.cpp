@@ -27,7 +27,7 @@ unsigned int nTransactionsUpdated = 0;
 map<COutPoint, CInPoint> mapNextTx;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock = 0;
+uint256 hashGenesisBlock("0x00000eedf741f6468755a0708ec37ea3e73b1c752e674b502c4b9c34a37acce7");
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 hashBestChain = 0;
@@ -1487,28 +1487,10 @@ bool LoadBlockIndex(bool fAllowNew)
         block.nVersion = 1;
         block.nTime    = 1739107200;
         block.nBits    = 0x1e0fffff;
-        block.nNonce   = 0;
+        block.nNonce   = 1676533;
 
-            //// debug print
-            printf("%s\n", block.GetHash().ToString().c_str());
-            printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-            txNew.vout[0].scriptPubKey.print();
-            block.print();
-
-        // Mine genesis block
-        printf("Mining genesis block...\n");
-        while (block.GetHash() > CBigNum().SetCompact(block.nBits).getuint256())
-        {
-            block.nNonce++;
-            if (block.nNonce % 100000 == 0)
-                printf("nNonce = %u, hash = %s\n", block.nNonce, block.GetHash().ToString().c_str());
-        }
-        printf("Genesis block mined! nNonce=%u\n", block.nNonce);
-        printf("Genesis hash: %s\n", block.GetHash().ToString().c_str());
-        printf("Merkle root: %s\n", block.hashMerkleRoot.ToString().c_str());
-
-        // Set the genesis block hash now that we have mined it
-        hashGenesisBlock = block.GetHash();
+        // Verify genesis block matches expected hash
+        assert(block.GetHash() == hashGenesisBlock);
 
         // Start new block file
         unsigned int nFile;

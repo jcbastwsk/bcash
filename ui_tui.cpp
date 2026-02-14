@@ -1046,12 +1046,15 @@ int main(int argc, char* argv[])
             fDebug = true;
         else if (arg == "-solo")
             fSoloMine = true;
+        else if ((arg == "-addnode" || arg == "--addnode") && i + 1 < argc)
+            vAddNodes.push_back(argv[++i]);
         else if (arg == "-help" || arg == "-h")
         {
             printf("Usage: bcash [options]\n");
             printf("Options:\n");
             printf("  -nogenerate     Don't mine blocks\n");
             printf("  -solo           Mine without peers (solo/bootstrap mode)\n");
+            printf("  -addnode <ip>   Add a peer node (can be used multiple times)\n");
             printf("  -datadir <dir>  Data directory\n");
             printf("  -debug          Enable debug output\n");
             printf("  -help           This help message\n");
