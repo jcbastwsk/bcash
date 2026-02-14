@@ -69,11 +69,42 @@ bool ConnectSocket(const CAddress& addrConnect, SOCKET& hSocketRet)
     bool fProxy = (addrProxy.ip && fRoutable);
     struct sockaddr_in sockaddr = (fProxy ? addrProxy.GetSockAddr() : addrConnect.GetSockAddr());
 
-    if (connect(hSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) == SOCKET_ERROR)
+    // Non-blocking connect with 5-second timeout
+    int flags = fcntl(hSocket, F_GETFL, 0);
+    fcntl(hSocket, F_SETFL, flags | O_NONBLOCK);
+
+    int nRet = connect(hSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+    if (nRet == SOCKET_ERROR)
     {
-        closesocket(hSocket);
-        return false;
+        if (errno != EINPROGRESS)
+        {
+            closesocket(hSocket);
+            return false;
+        }
+        struct timeval tv;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+        fd_set fdset;
+        FD_ZERO(&fdset);
+        FD_SET(hSocket, &fdset);
+        nRet = select(hSocket + 1, NULL, &fdset, NULL, &tv);
+        if (nRet <= 0)
+        {
+            closesocket(hSocket);
+            return false;
+        }
+        int nErr = 0;
+        socklen_t nLen = sizeof(nErr);
+        getsockopt(hSocket, SOL_SOCKET, SO_ERROR, &nErr, &nLen);
+        if (nErr != 0)
+        {
+            closesocket(hSocket);
+            return false;
+        }
     }
+
+    // Restore blocking mode for send/recv
+    fcntl(hSocket, F_SETFL, flags);
 
     if (fProxy)
     {
@@ -1063,15 +1094,19 @@ bool StartNode(string& strError)
         return false;
     }
 
-    // Get our external IP address for incoming connections
+    // Get our external IP address for incoming connections (non-blocking)
     if (addrIncoming.ip)
         addrLocalHost.ip = addrIncoming.ip;
 
-    if (GetMyExternalIP(addrLocalHost.ip))
-    {
-        addrIncoming = addrLocalHost;
-        CWalletDB().WriteSetting("addrIncoming", addrIncoming);
-    }
+    std::thread([]() {
+        unsigned int ip = addrLocalHost.ip;
+        if (GetMyExternalIP(ip) && !fShutdown)
+        {
+            addrLocalHost.ip = ip;
+            addrIncoming = addrLocalHost;
+            CWalletDB().WriteSetting("addrIncoming", addrIncoming);
+        }
+    }).detach();
 
     // Add manually specified nodes (-addnode)
     for (unsigned int i = 0; i < vAddNodes.size(); i++)
@@ -1110,7 +1145,7 @@ bool StopNode()
     printf("StopNode()\n");
     fShutdown = true;
     nTransactionsUpdated++;
-    int nTimeout = 10000;
+    int nTimeout = 5000;
     while (count(vfThreadRunning.begin(), vfThreadRunning.end(), true) && nTimeout > 0)
     {
         Sleep(10);

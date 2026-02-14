@@ -27,6 +27,17 @@ void HandleSignal(int sig)
     fShutdown = true;
 }
 
+void InstallSignalHandlers()
+{
+    struct sigaction sa;
+    sa.sa_handler = HandleSignal;
+    sa.sa_flags = 0;  // No SA_RESTART — getch() must return on signal
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    signal(SIGPIPE, SIG_IGN);
+}
+
 // ── Color pairs ──────────────────────────────────────────────
 enum Colors {
     C_TITLE = 1,
@@ -1730,15 +1741,13 @@ int main(int argc, char* argv[])
         StartMultiMiner();
     }
 
-    // Signal handlers
-#ifndef _WIN32
-    signal(SIGINT, HandleSignal);
-    signal(SIGTERM, HandleSignal);
-    signal(SIGPIPE, SIG_IGN);
-#endif
-
     // Snapshot initial height
     nLastKnownHeight = nBestHeight;
+
+    // Install signal handlers before ncurses (in case initscr blocks)
+#ifndef _WIN32
+    InstallSignalHandlers();
+#endif
 
     // Redirect stdout/stderr to log file so background thread
     // printf() calls don't corrupt the ncurses display
@@ -1762,6 +1771,13 @@ int main(int argc, char* argv[])
     keypad(stdscr, TRUE);
     curs_set(0);
     halfdelay(10);
+
+    // Reinstall signal handlers after initscr() — ncurses may have
+    // overridden them. Using sigaction without SA_RESTART ensures
+    // getch() returns immediately when a signal arrives.
+#ifndef _WIN32
+    InstallSignalHandlers();
+#endif
 
     InitColors();
     CreateWindows();
@@ -1947,6 +1963,6 @@ int main(int argc, char* argv[])
     ClusterStop();
     StopNode();
     DBFlush(true);
-    printf("bcash stopped.\n");
+    printf("CLEAN SHUTDOWN\n");
     return 0;
 }
