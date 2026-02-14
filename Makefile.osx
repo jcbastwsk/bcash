@@ -51,14 +51,14 @@ CXXFLAGS_TUI=$(CXXFLAGS_COMMON)
 LDFLAGS_TUI=$(LDFLAGS_COMMON)
 LIBS_TUI=$(LIBS_COMMON)
 
-OBJS_TUI=util.o script.o db.o net.o main.o market.o sha.o irc.o news.o bgold.o rpc.o ui_tui.o
+OBJS_TUI=util.o script.o db.o net.o main.o market.o sha.o irc.o news.o bgold.o rpc.o gamechannel.o chess.o poker.o imageboard.o ui_tui.o
 
 # --- GUI build ---
 CXXFLAGS_GUI=$(CXXFLAGS_COMMON) -DGUI $(WX_CXXFLAGS)
 LDFLAGS_GUI=$(LDFLAGS_COMMON)
 LIBS_GUI=-ldb_cxx-5 -lssl -lcrypto -lpthread $(WX_LIBS)
 
-OBJS_GUI=util.gui.o script.gui.o db.gui.o net.gui.o main.gui.o market.gui.o sha.gui.o irc.gui.o news.gui.o bgold.gui.o rpc.gui.o ui.gui.o uibase.gui.o
+OBJS_GUI=util.gui.o script.gui.o db.gui.o net.gui.o main.gui.o market.gui.o sha.gui.o irc.gui.o news.gui.o bgold.gui.o rpc.gui.o gamechannel.gui.o chess.gui.o poker.gui.o imageboard.gui.o ui.gui.o uibase.gui.o
 
 # Default target: headless
 all: bcash
@@ -94,7 +94,11 @@ irc.o: irc.cpp headers.h irc.h
 news.o: news.cpp headers.h news.h
 bgold.o: bgold.cpp headers.h bgold.h
 rpc.o: rpc.cpp headers.h rpc.h bgold.h
-ui_tui.o: ui_tui.cpp headers.h bgold.h
+gamechannel.o: gamechannel.cpp headers.h gamechannel.h
+chess.o: chess.cpp headers.h chess.h
+poker.o: poker.cpp headers.h poker.h
+imageboard.o: imageboard.cpp headers.h imageboard.h
+ui_tui.o: ui_tui.cpp headers.h bgold.h gamechannel.h chess.h poker.h
 
 util.gui.o: util.cpp headers.h util.h serialize.h uint256.h
 script.gui.o: script.cpp headers.h script.h
@@ -107,6 +111,10 @@ irc.gui.o: irc.cpp headers.h irc.h
 news.gui.o: news.cpp headers.h news.h
 bgold.gui.o: bgold.cpp headers.h bgold.h
 rpc.gui.o: rpc.cpp headers.h rpc.h bgold.h
+gamechannel.gui.o: gamechannel.cpp headers.h gamechannel.h
+chess.gui.o: chess.cpp headers.h chess.h
+poker.gui.o: poker.cpp headers.h poker.h
+imageboard.gui.o: imageboard.cpp headers.h imageboard.h
 ui.gui.o: ui.cpp headers.h ui.h uibase.h bgold.h
 uibase.gui.o: uibase.cpp uibase.h
 

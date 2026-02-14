@@ -28,8 +28,8 @@ void HandleSignal(int sig)
 
 int main(int argc, char* argv[])
 {
-    printf("Bcash v0.1.0 - headless node\n");
-    printf("Based on Bitcoin 0.01 by Satoshi Nakamoto\n\n");
+    printf("bcash v0.1.0 - headless node\n");
+    printf("Based on Bitcoin 0.01 by Satoshi Nakamoto. bnet/bcash/bgold by Jacob Sitowski.\n\n");
 
     // Set up signal handlers
 #ifndef _WIN32
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    fGenerateBitcoins = fGenerate;
+    fGenerateBcash = fGenerate;
 
     // Load addresses
     printf("Loading addresses...\n");
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
     }
 
     // Start miner thread
-    if (fGenerateBitcoins)
+    if (fGenerateBcash)
     {
         if (fSoloMine)
             printf("Starting miner in SOLO mode (no peers required)...\n");
@@ -121,13 +121,13 @@ int main(int argc, char* argv[])
             printf("Starting miner...\n");
         pthread_t thrMiner;
         if (pthread_create(&thrMiner, NULL,
-            [](void* p) -> void* { ThreadBitcoinMiner(p); return NULL; }, NULL) != 0)
+            [](void* p) -> void* { ThreadBcashMiner(p); return NULL; }, NULL) != 0)
             printf("Warning: Failed to start miner\n");
         else
             pthread_detach(thrMiner);
     }
 
-    printf("\nBcash node running. Press Ctrl+C to stop.\n");
+    printf("\nbcash node running. Press Ctrl+C to stop.\n");
     printf("RPC server on 127.0.0.1:9332\n\n");
 
     // Block until shutdown
@@ -151,6 +151,6 @@ int main(int argc, char* argv[])
     printf("Shutting down...\n");
     StopNode();
     DBFlush(true);
-    printf("Bcash stopped.\n");
+    printf("bcash stopped.\n");
     return 0;
 }

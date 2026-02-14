@@ -14,6 +14,7 @@
 //
 
 map<uint256, CBgoldBlock> mapBgoldBlocks;
+map<uint256, CBgoldProof> mapBgoldProofs;
 CCriticalSection cs_bgold;
 uint256 hashBestBgoldBlock = 0;
 int nBgoldHeight = 0;
@@ -176,4 +177,128 @@ CScript CreateBgoldCommitment(const uint256& hashBgoldBlock)
 
     script << vchData;
     return script;
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// 21e8 Aesthetic PoW: Accept and validate a bgold proof
+//
+
+bool AcceptBgoldProof(const CBgoldProof& proof)
+{
+    CRITICAL_BLOCK(cs_bgold)
+    {
+        uint256 hash = proof.GetHash();
+        if (mapBgoldProofs.count(hash))
+            return false; // already known
+
+        if (!proof.CheckProof())
+            return error("AcceptBgoldProof() : proof failed validation");
+
+        int64 nValue = proof.GetValue();
+        if (nValue <= 0)
+            return error("AcceptBgoldProof() : proof has no value");
+
+        // Credit the miner
+        uint160 hashPubKey = Hash160(proof.vchPubKey);
+        int64 nBalance = 0;
+
+        CBgoldDB bgolddb;
+        bgolddb.ReadBalance(hashPubKey, nBalance);
+        nBalance += nValue;
+
+        if (!bgolddb.TxnBegin())
+            return error("AcceptBgoldProof() : TxnBegin failed");
+
+        if (!bgolddb.WriteBgoldProof(hash, proof))
+        {
+            bgolddb.TxnAbort();
+            return error("AcceptBgoldProof() : WriteBgoldProof failed");
+        }
+
+        if (!bgolddb.WriteBalance(hashPubKey, nBalance))
+        {
+            bgolddb.TxnAbort();
+            return error("AcceptBgoldProof() : WriteBalance failed");
+        }
+
+        int nCount = 0;
+        bgolddb.ReadProofCount(nCount);
+        nCount++;
+        if (!bgolddb.WriteProofCount(nCount))
+        {
+            bgolddb.TxnAbort();
+            return error("AcceptBgoldProof() : WriteProofCount failed");
+        }
+
+        if (!bgolddb.TxnCommit())
+            return error("AcceptBgoldProof() : TxnCommit failed");
+
+        mapBgoldProofs[hash] = proof;
+
+        printf("\n");
+        printf("========================================\n");
+        printf("  21e8 PROOF FOUND!  Value: %lld\n", nValue);
+        printf("  Result: %s\n", proof.hashResult.GetHex().c_str());
+        printf("  Proof #%d  Balance: %lld\n", nCount, nBalance);
+        printf("========================================\n\n");
+    }
+    return true;
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Check21e8MinerHash: called during mining to check if the single-SHA-256
+// intermediate hash has a 21e8 pattern. If so, creates a bgold proof.
+//
+
+bool Check21e8MinerHash(const uint256& hashSingleSHA256, const vector<unsigned char>& vchPubKey,
+                         unsigned int nNonce)
+{
+    if (!Has21e8Pattern(hashSingleSHA256))
+        return false;
+
+    // Build the proof: the "content" is the block header hash (single SHA-256),
+    // the nonce is the block nonce that produced it
+    CBgoldProof proof;
+    proof.nVersion = 1;
+    // vchData left empty for merge-mined proofs (content is the block header)
+    proof.hashContent = hashSingleSHA256;
+    proof.nNonce = nNonce;
+    proof.hashResult = hashSingleSHA256; // the single-SHA-256 IS the result
+    proof.nTime = GetAdjustedTime();
+    proof.vchPubKey = vchPubKey;
+
+    // Sign the proof
+    CRITICAL_BLOCK(cs_mapKeys)
+    {
+        if (mapKeys.count(vchPubKey))
+        {
+            CKey key;
+            key.SetPubKey(vchPubKey);
+            key.SetPrivKey(mapKeys[vchPubKey]);
+            if (!key.Sign(proof.GetSigHash(), proof.vchSig))
+                return false;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    AcceptBgoldProof(proof);
+
+    // Relay to peers
+    CInv inv(MSG_BGOLD_PROOF, proof.GetHash());
+    CRITICAL_BLOCK(cs_vNodes)
+        foreach(CNode* pnode, vNodes)
+            pnode->PushMessage("bgoldproof", proof);
+
+    return true;
 }

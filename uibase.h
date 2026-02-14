@@ -44,7 +44,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #define wxID_MAINFRAME 1000
-#define wxID_OPTIONSGENERATEBITCOINS 1001
+#define wxID_OPTIONSGENERATEBCASH 1001
 #define wxID_BUTTONSEND 1002
 #define wxID_BUTTONRECEIVE 1003
 #define wxID_TEXTCTRLADDRESS 1004
@@ -167,7 +167,7 @@ public:
     wxListCtrl* m_listCtrlNews;
     wxListCtrl* m_listCtrlMarket;
     wxListCtrl* m_listCtrlBgold;
-    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("Bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(780,520), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
+    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(780,520), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
     ~CMainFrameBase();
 
 };
@@ -243,7 +243,7 @@ protected:
 
 public:
     wxStaticText* m_staticTextVersion;
-    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About Bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
+    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
     ~CAboutDialogBase();
 
 };
@@ -351,7 +351,7 @@ protected:
 
 
 public:
-    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your Bcash Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your bcash Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
     ~CYourAddressDialogBase();
 
 };

@@ -39,7 +39,7 @@ extern string strSetDataDir;
 extern int nDropMessagesTest;
 
 // Settings
-extern int fGenerateBitcoins;
+extern int fGenerateBcash;
 extern bool fSoloMine;
 extern int64 nTransactionFee;
 extern CAddress addrIncoming;
@@ -60,7 +60,7 @@ void ReacceptWalletTransactions();
 void RelayWalletTransactions();
 bool LoadBlockIndex(bool fAllowNew=true);
 void PrintBlockTree();
-bool BitcoinMiner();
+bool BcashMiner();
 bool ProcessMessages(CNode* pfrom);
 bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv);
 bool SendMessages(CNode* pto);

@@ -37,9 +37,9 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_menubar->Append(m_menuView, wxT("&View"));
 
     m_menuOptions = new wxMenu();
-    wxMenuItem* m_menuOptionsGenerateBitcoins;
-    m_menuOptionsGenerateBitcoins = new wxMenuItem(m_menuOptions, wxID_OPTIONSGENERATEBITCOINS, wxString(wxT("&Generate Coins")) , wxEmptyString, wxITEM_CHECK);
-    m_menuOptions->Append(m_menuOptionsGenerateBitcoins);
+    wxMenuItem* m_menuOptionsGenerateBcash;
+    m_menuOptionsGenerateBcash = new wxMenuItem(m_menuOptions, wxID_OPTIONSGENERATEBCASH, wxString(wxT("&Generate Coins")) , wxEmptyString, wxITEM_CHECK);
+    m_menuOptions->Append(m_menuOptionsGenerateBcash);
 
     wxMenuItem* m_menuOptionsOptions;
     m_menuOptionsOptions = new wxMenuItem(m_menuOptions, wxID_ANY, wxString(wxT("&Options...")) , wxEmptyString, wxITEM_NORMAL);
@@ -77,7 +77,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     wxBoxSizer* bSizer85;
     bSizer85 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your Bcash Address:"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your bcash Address:"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText32->Wrap(-1);
     bSizer85->Add(m_staticText32, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5);
 
@@ -260,7 +260,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     this->Connect(wxEVT_MOUSEWHEEL, wxMouseEventHandler(CMainFrameBase::OnMouseEvents));
     this->Connect(wxEVT_PAINT, wxPaintEventHandler(CMainFrameBase::OnPaint));
     this->Connect(m_menuFileExit->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuFileExit));
-    this->Connect(m_menuOptionsGenerateBitcoins->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuOptionsGenerate));
+    this->Connect(m_menuOptionsGenerateBcash->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuOptionsGenerate));
     this->Connect(m_menuOptionsOptions->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuOptionsOptions));
     this->Connect(m_menuHelpAbout->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuHelpAbout));
     this->Connect(m_menuViewPeers->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(CMainFrameBase::OnMenuViewPeers));
@@ -460,7 +460,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
     wxBoxSizer* bSizer64;
     bSizer64 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("Bcash "), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("bcash "), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText40->Wrap(-1);
     m_staticText40->SetFont(wxFont(10, 74, 90, 92, false, wxT("Tahoma")));
 
@@ -477,7 +477,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
 
     bSizer63->Add(0, 4, 0, wxEXPAND, 5);
 
-    m_staticTextMain = new wxStaticText(this, wxID_ANY, wxT("Copyright (c) 2026 Bcash developers.\nBased on Bitcoin 0.01 by Satoshi Nakamoto.\n\nThis is experimental software.  Do not rely on it for actual financial transactions.\n\nDistributed under the MIT/X11 software license, see the accompanying file license.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by Eric Young (eay@cryptsoft.com)."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticTextMain = new wxStaticText(this, wxID_ANY, wxT("Copyright (c) 2026 bcash developers.\nBased on Bitcoin 0.01 by Satoshi Nakamoto.\n\nThis is experimental software.  Do not rely on it for actual financial transactions.\n\nDistributed under the MIT/X11 software license, see the accompanying file license.txt or http://www.opensource.org/licenses/mit-license.php.\n\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by Eric Young (eay@cryptsoft.com)."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticTextMain->Wrap(400);
     bSizer63->Add(m_staticTextMain, 0, wxALL, 5);
 
@@ -531,7 +531,7 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
 
     fgSizer1->Add(0, 0, 0, wxEXPAND, 5);
 
-    m_staticText14 = new wxStaticText(this, wxID_ANY, wxT("Enter the recipient's IP address (e.g. 123.45.6.7) for online transfer with comments and confirmation, \nor bitcoin address (e.g. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJED9L) if recipient is not online."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText14 = new wxStaticText(this, wxID_ANY, wxT("Enter the recipient's IP address (e.g. 123.45.6.7) for online transfer with comments and confirmation, \nor bcash address (e.g. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJED9L) if recipient is not online."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText14->Wrap(-1);
     fgSizer1->Add(m_staticText14, 0, wxTOP|wxRIGHT|wxLEFT, 5);
 
@@ -735,7 +735,7 @@ CYourAddressDialogBase::CYourAddressDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer68->Add(0, 5, 0, wxEXPAND, 5);
 
-    m_staticText45 = new wxStaticText(this, wxID_ANY, wxT("These are your Bitcoin addresses for receiving payments.\nYou may want to give a different one to each sender so you can keep track of who is paying you."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText45 = new wxStaticText(this, wxID_ANY, wxT("These are your bcash addresses for receiving payments.\nYou may want to give a different one to each sender so you can keep track of who is paying you."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText45->Wrap(600);
     bSizer68->Add(m_staticText45, 0, wxALL, 5);
 
@@ -814,7 +814,7 @@ CAddressBookDialogBase::CAddressBookDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer68->Add(0, 5, 0, wxEXPAND, 5);
 
-    m_staticText55 = new wxStaticText(this, wxID_ANY, wxT("Bitcoin Address"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText55 = new wxStaticText(this, wxID_ANY, wxT("bcash Address"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText55->Wrap(-1);
     m_staticText55->Hide();
 

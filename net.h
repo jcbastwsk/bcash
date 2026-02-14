@@ -28,7 +28,7 @@ CNode* FindNode(unsigned int ip);
 CNode* ConnectNode(CAddress addrConnect, int64 nTimeout=0);
 void AbandonRequests(void (*fn)(void*, CDataStream&), void* param1);
 bool AnySubscribed(unsigned int nChannel);
-void ThreadBitcoinMiner(void* parg);
+void ThreadBcashMiner(void* parg);
 bool StartNode(string& strError=REF(string()));
 bool StopNode();
 void CheckForShutdown(int n);
@@ -304,6 +304,15 @@ enum
     MSG_NEWS,
     MSG_NEWSVOTE,
     MSG_BGOLD_BLOCK,
+    MSG_GAME_CHALLENGE,
+    MSG_GAME_ACCEPT,
+    MSG_GAME_MOVE,
+    MSG_GAME_SETTLE,
+    MSG_GAME_RESULT,
+    MSG_BGOLD_PROOF,
+    MSG_IMAGE_POST,
+    MSG_IMAGE_REQUEST,
+    MSG_IMAGE_DATA,
 };
 
 static const char* ppszTypeName[] =
@@ -317,6 +326,15 @@ static const char* ppszTypeName[] =
     "news",
     "newsvote",
     "bgoldblock",
+    "gamechallenge",
+    "gameaccept",
+    "gamemove",
+    "gamesettle",
+    "gameresult",
+    "bgoldproof",
+    "imagepost",
+    "imagereq",
+    "imagedata",
 };
 
 class CInv

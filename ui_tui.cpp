@@ -76,7 +76,7 @@ static void InitColors()
 
 
 // ── TUI state ────────────────────────────────────────────────
-enum Tab { TAB_WALLET=0, TAB_NEWS, TAB_MARKET, TAB_BGOLD, TAB_SEND, TAB_COUNT };
+enum Tab { TAB_WALLET=0, TAB_NEWS, TAB_MARKET, TAB_BGOLD, TAB_SEND, TAB_CHESS, TAB_POKER, TAB_COUNT };
 static int nCurrentTab = TAB_WALLET;
 static int nScrollOffset = 0;
 static int nContentLines = 0;
@@ -93,6 +93,20 @@ static string strSendAmount;
 static int nSendField = 0;
 static string strSendStatus;
 static bool fSendError = false;
+
+// Wallet detail state
+static int nWalletViewMode = 0;  // 0=tx list, 1=tx detail, 2=receive addresses
+static uint256 hashSelectedTx;
+static int nWalletCursor = 0;
+
+// Chess state
+static int nChessViewMode = 0;  // 0=lobby, 1=board
+static uint256 hashActiveChessGame;
+static string strChessMoveInput;
+
+// Poker state
+static int nPokerViewMode = 0;  // 0=lobby, 1=game
+static uint256 hashActivePokerGame;
 
 // Windows
 static WINDOW *winHeader = NULL;
@@ -283,7 +297,7 @@ static void DrawStatusBar()
 
     // Mining indicator
     string strMine;
-    if (fGenerateBitcoins)
+    if (fGenerateBcash)
     {
         wattron(winStatus, A_BOLD);
         mvwprintw(winStatus, 1, 2, "%s MINING", MiningSpinner().c_str());
@@ -300,8 +314,31 @@ static void DrawStatusBar()
     // Sparkline
     mvwprintw(winStatus, 0, cols - (int)sparkline.size() - 3, "[%s]", sparkline.c_str());
 
-    // Balance line
-    mvwprintw(winStatus, 1, cols / 3, "BCASH: %s", FormatMoney(nBalance).c_str());
+    // Balance line - show confirmed and unconfirmed
+    int64 nConfirmed = 0, nUnconfirmed = 0;
+    CRITICAL_BLOCK(cs_mapWallet)
+    {
+        for (map<uint256, CWalletTx>::iterator it = mapWallet.begin();
+             it != mapWallet.end(); ++it)
+        {
+            const CWalletTx& wtx = it->second;
+            int64 nCredit = wtx.GetCredit();
+            if (nCredit > 0)
+            {
+                if (wtx.GetDepthInMainChain() >= 6)
+                    nConfirmed += nCredit;
+                else
+                    nUnconfirmed += nCredit;
+            }
+        }
+    }
+    mvwprintw(winStatus, 1, cols / 3, "BCASH: %s", FormatMoney(nConfirmed).c_str());
+    if (nUnconfirmed > 0)
+    {
+        wattron(winStatus, A_DIM);
+        mvwprintw(winStatus, 1, cols / 3 + 22, "(+ %s unconf)", FormatMoney(nUnconfirmed).c_str());
+        wattroff(winStatus, A_DIM);
+    }
 
     // Bgold
     wattron(winStatus, A_BOLD);
@@ -343,8 +380,8 @@ static void DrawTabBar()
     werase(winTabs);
     ColorBox(winTabs, C_BORDER);
 
-    const char* tabNames[] = { "WALLET", "NEWS", "MARKET", "BGOLD", "SEND" };
-    const char* tabIcons[] = { "$", "#", "%", "G", ">" };
+    const char* tabNames[] = { "WALLET", "NEWS", "MARKET", "BGOLD", "SEND", "CHESS", "POKER" };
+    const char* tabIcons[] = { "$", "#", "%", "G", ">", "K", "P" };
     int x = 2;
     for (int i = 0; i < TAB_COUNT; i++)
     {
@@ -857,6 +894,566 @@ static void DrawSendTab()
 }
 
 
+// ── Wallet detail view ────────────────────────────────────────
+static void DrawWalletDetailView()
+{
+    int rows, cols;
+    getmaxyx(winContent, rows, cols);
+
+    werase(winContent);
+    ColorBox(winContent, C_BORDER);
+
+    wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+    mvwprintw(winContent, 0, 2, " $ Transaction Details ");
+    wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+    // Find the transaction
+    vector<pair<int64, const CWalletTx*> > vSorted;
+    CRITICAL_BLOCK(cs_mapWallet)
+    {
+        for (map<uint256, CWalletTx>::iterator it = mapWallet.begin();
+             it != mapWallet.end(); ++it)
+            vSorted.push_back(make_pair(it->second.GetTxTime(), &it->second));
+    }
+    sort(vSorted.begin(), vSorted.end(),
+         [](const pair<int64, const CWalletTx*>& a, const pair<int64, const CWalletTx*>& b) {
+             return a.first > b.first;
+         });
+
+    if (nWalletCursor < 0 || nWalletCursor >= (int)vSorted.size())
+    {
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwprintw(winContent, rows/2, (cols-20)/2, "~ no transaction ~");
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+        wnoutrefresh(winContent);
+        return;
+    }
+
+    const CWalletTx* pwtx = vSorted[nWalletCursor].second;
+    int line = 2;
+
+    // TXID
+    wattron(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 2, "TXID:");
+    wattroff(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 10, "%s", pwtx->GetHash().ToString().c_str());
+    line++;
+
+    // Block hash + confirmations
+    int nConf = pwtx->GetDepthInMainChain();
+    wattron(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 2, "Block:");
+    wattroff(winContent, COLOR_PAIR(C_HEADER));
+    if (nConf > 0)
+        mvwprintw(winContent, line, 10, "%s  (%d confirmations)", pwtx->hashBlock.ToString().substr(0,24).c_str(), nConf);
+    else
+        mvwprintw(winContent, line, 10, "unconfirmed (mempool)");
+    line++;
+
+    // Time
+    wattron(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 2, "Time:");
+    wattroff(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 10, "%s", DateTimeStr(pwtx->GetTxTime()).c_str());
+    line++;
+
+    // Amount
+    int64 nCredit = pwtx->GetCredit();
+    int64 nDebit = pwtx->GetDebit();
+    int64 nNet = nCredit - nDebit;
+    int64 nFee = nDebit > 0 ? (nDebit - pwtx->GetValueOut()) : 0;
+
+    wattron(winContent, COLOR_PAIR(C_HEADER));
+    mvwprintw(winContent, line, 2, "Net:");
+    wattroff(winContent, COLOR_PAIR(C_HEADER));
+    int amtColor = nNet > 0 ? C_TX_POS : (nNet < 0 ? C_TX_NEG : C_TX_ZERO);
+    wattron(winContent, COLOR_PAIR(amtColor) | A_BOLD);
+    mvwprintw(winContent, line, 10, "%s BCASH", FormatMoney(nNet).c_str());
+    wattroff(winContent, COLOR_PAIR(amtColor) | A_BOLD);
+    line++;
+
+    if (nFee > 0)
+    {
+        wattron(winContent, COLOR_PAIR(C_HEADER));
+        mvwprintw(winContent, line, 2, "Fee:");
+        wattroff(winContent, COLOR_PAIR(C_HEADER));
+        mvwprintw(winContent, line, 10, "%s BCASH", FormatMoney(nFee).c_str());
+        line++;
+    }
+
+    // Separator
+    line++;
+    wattron(winContent, COLOR_PAIR(C_DIM));
+    mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+    wattroff(winContent, COLOR_PAIR(C_DIM));
+    line++;
+
+    // Outputs
+    wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+    mvwprintw(winContent, line, 2, "Outputs:");
+    wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+    line++;
+
+    for (int i = 0; i < (int)pwtx->vout.size() && line < rows - 2; i++)
+    {
+        const CTxOut& txout = pwtx->vout[i];
+        bool fMine = txout.IsMine();
+        wattron(winContent, COLOR_PAIR(fMine ? C_TX_POS : C_DIM));
+        mvwprintw(winContent, line, 4, "[%d] %15s %s", i,
+            FormatMoney(txout.nValue).c_str(),
+            fMine ? "(mine)" : "");
+        wattroff(winContent, COLOR_PAIR(fMine ? C_TX_POS : C_DIM));
+        line++;
+    }
+
+    // Memo/comment
+    map<string, string>::const_iterator mi;
+    mi = pwtx->mapValue.find("message");
+    if (mi != pwtx->mapValue.end() && !mi->second.empty())
+    {
+        line++;
+        wattron(winContent, COLOR_PAIR(C_HEADER));
+        mvwprintw(winContent, line, 2, "Memo:");
+        wattroff(winContent, COLOR_PAIR(C_HEADER));
+        mvwprintw(winContent, line, 10, "%s", mi->second.substr(0, cols-12).c_str());
+    }
+
+    nContentLines = 0;
+    wnoutrefresh(winContent);
+}
+
+
+// ── Receive addresses view ───────────────────────────────────
+static void DrawReceiveAddresses()
+{
+    int rows, cols;
+    getmaxyx(winContent, rows, cols);
+
+    werase(winContent);
+    ColorBox(winContent, C_BORDER);
+
+    wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+    mvwprintw(winContent, 0, 2, " $ Receive Addresses [r:back  n:new] ");
+    wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+    int line = 2;
+
+    wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+    mvwprintw(winContent, line, 2, "  %-16s  %s", "LABEL", "ADDRESS");
+    wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+    line++;
+    wattron(winContent, COLOR_PAIR(C_DIM));
+    mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+    wattroff(winContent, COLOR_PAIR(C_DIM));
+    line++;
+
+    // List addresses from address book
+    vector<pair<string, string> > vAddrs;
+    for (map<string, string>::iterator it = mapAddressBook.begin();
+         it != mapAddressBook.end(); ++it)
+    {
+        // Only show our own addresses (ones we have keys for)
+        uint160 hash160;
+        if (AddressToHash160(it->first, hash160) && mapPubKeys.count(hash160))
+            vAddrs.push_back(make_pair(it->second, it->first));
+    }
+
+    nContentLines = (int)vAddrs.size() + 4;
+
+    for (int i = nScrollOffset; i < (int)vAddrs.size() && line < rows - 1; i++, line++)
+    {
+        wattron(winContent, COLOR_PAIR(C_TX_POS));
+        mvwprintw(winContent, line, 2, "  %-16s", vAddrs[i].first.substr(0,16).c_str());
+        wattroff(winContent, COLOR_PAIR(C_TX_POS));
+
+        mvwprintw(winContent, line, 20, "  %s", vAddrs[i].second.c_str());
+    }
+
+    if (vAddrs.empty())
+    {
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwprintw(winContent, rows/2, (cols-20)/2, "~ no addresses ~");
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+    }
+
+    wnoutrefresh(winContent);
+}
+
+
+// ── Chess tab ────────────────────────────────────────────────
+static void DrawChessTab()
+{
+    int rows, cols;
+    getmaxyx(winContent, rows, cols);
+
+    werase(winContent);
+    ColorBox(winContent, C_BORDER);
+
+    if (nChessViewMode == 0)
+    {
+        // Lobby view
+        wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+        mvwprintw(winContent, 0, 2, " K Chess Lobby [c:challenge  a:accept] ");
+        wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+        int line = 2;
+
+        // Open challenges
+        wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        mvwprintw(winContent, line, 2, "  OPEN CHALLENGES");
+        wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        line++;
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+        line++;
+
+        int nCount = 0;
+        CRITICAL_BLOCK(cs_mapGames)
+        {
+            for (map<uint256, CGameChallenge>::iterator it = mapGameChallenges.begin();
+                 it != mapGameChallenges.end(); ++it)
+            {
+                if (it->second.nGameType != GAME_CHESS)
+                    continue;
+                string strBet = FormatMoney(it->second.nBetAmount);
+                string strHash = it->first.ToString().substr(0, 12);
+                bool fMine = mapKeys.count(it->second.vchPubKey) > 0;
+
+                if (fMine)
+                    wattron(winContent, COLOR_PAIR(C_TX_POS));
+                mvwprintw(winContent, line, 4, "%s  Bet: %s BCASH  %s",
+                    strHash.c_str(), strBet.c_str(), fMine ? "(yours)" : "");
+                if (fMine)
+                    wattroff(winContent, COLOR_PAIR(C_TX_POS));
+                line++;
+                nCount++;
+            }
+        }
+
+        if (nCount == 0)
+        {
+            wattron(winContent, COLOR_PAIR(C_DIM));
+            mvwprintw(winContent, line, 4, "~ no open chess challenges ~");
+            wattroff(winContent, COLOR_PAIR(C_DIM));
+            line++;
+        }
+
+        // Active games
+        line += 2;
+        wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        mvwprintw(winContent, line, 2, "  YOUR GAMES");
+        wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        line++;
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+        line++;
+
+        int nGames = 0;
+        CRITICAL_BLOCK(cs_mapGames)
+        {
+            for (map<uint256, CGameSession>::iterator it = mapGameSessions.begin();
+                 it != mapGameSessions.end(); ++it)
+            {
+                if (it->second.nGameType != GAME_CHESS || !it->second.IsMyGame())
+                    continue;
+                string strHash = it->first.ToString().substr(0, 12);
+                const char* pszState = "unknown";
+                switch (it->second.nState)
+                {
+                case GSTATE_OPEN:     pszState = "open";     break;
+                case GSTATE_FUNDED:   pszState = "funded";   break;
+                case GSTATE_PLAYING:  pszState = "playing";  break;
+                case GSTATE_FINISHED: pszState = "finished"; break;
+                case GSTATE_SETTLED:  pszState = "settled";  break;
+                }
+                mvwprintw(winContent, line, 4, "%s  [%s]  Moves: %d  Bet: %s",
+                    strHash.c_str(), pszState,
+                    (int)it->second.vMoves.size(),
+                    FormatMoney(it->second.nBetAmount).c_str());
+                line++;
+                nGames++;
+            }
+        }
+
+        if (nGames == 0)
+        {
+            wattron(winContent, COLOR_PAIR(C_DIM));
+            mvwprintw(winContent, line, 4, "~ no active chess games ~");
+            wattroff(winContent, COLOR_PAIR(C_DIM));
+        }
+
+        nContentLines = 0;
+    }
+    else
+    {
+        // Board view
+        wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+        mvwprintw(winContent, 0, 2, " K Chess Game [Esc:back] ");
+        wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+        CRITICAL_BLOCK(cs_mapGames)
+        {
+            if (mapGameSessions.count(hashActiveChessGame))
+            {
+                CGameSession& session = mapGameSessions[hashActiveChessGame];
+
+                // Deserialize and display board
+                CChessBoard board;
+                if (!session.vchGameState.empty())
+                {
+                    CDataStream ss(session.vchGameState);
+                    // Reconstruct board from move history
+                    board.SetInitialPosition();
+                    for (int i = 0; i < (int)session.vMoves.size(); i++)
+                        board.MakeMove(session.vMoves[i].strMove);
+                }
+                else
+                {
+                    board.SetInitialPosition();
+                    for (int i = 0; i < (int)session.vMoves.size(); i++)
+                        board.MakeMove(session.vMoves[i].strMove);
+                }
+
+                string ascii = board.ToASCII();
+
+                // Display board
+                int line = 2;
+                size_t pos = 0;
+                while (pos < ascii.size() && line < rows - 4)
+                {
+                    size_t nl = ascii.find('\n', pos);
+                    if (nl == string::npos) nl = ascii.size();
+                    string boardLine = ascii.substr(pos, nl - pos);
+                    mvwprintw(winContent, line, 4, "%s", boardLine.c_str());
+                    pos = nl + 1;
+                    line++;
+                }
+
+                // Move input
+                line++;
+                wattron(winContent, COLOR_PAIR(C_HEADER));
+                mvwprintw(winContent, line, 4, "Move: ");
+                wattroff(winContent, COLOR_PAIR(C_HEADER));
+                wattron(winContent, COLOR_PAIR(C_SEND_FIELD));
+                mvwprintw(winContent, line, 10, "[%-8s]", strChessMoveInput.c_str());
+                wattroff(winContent, COLOR_PAIR(C_SEND_FIELD));
+
+                // Turn indicator
+                mvwprintw(winContent, line, 24, "%s to move",
+                    board.fWhiteToMove ? "White" : "Black");
+
+                // Move history (right side)
+                int histLine = 2;
+                int histX = cols / 2 + 2;
+                wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+                mvwprintw(winContent, histLine, histX, "Move History");
+                wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+                histLine++;
+
+                for (int i = 0; i < (int)session.vMoves.size() && histLine < rows - 2; i += 2, histLine++)
+                {
+                    string line1 = session.vMoves[i].strMove;
+                    string line2 = (i+1 < (int)session.vMoves.size()) ? session.vMoves[i+1].strMove : "";
+                    mvwprintw(winContent, histLine, histX, "%2d. %-6s %s",
+                        i/2 + 1, line1.c_str(), line2.c_str());
+                }
+            }
+            else
+            {
+                wattron(winContent, COLOR_PAIR(C_DIM));
+                mvwprintw(winContent, rows/2, (cols-20)/2, "~ game not found ~");
+                wattroff(winContent, COLOR_PAIR(C_DIM));
+            }
+        }
+        nContentLines = 0;
+    }
+
+    wnoutrefresh(winContent);
+}
+
+static void HandleChessInput(int ch)
+{
+    if (ch == 27) // Escape
+    {
+        if (nChessViewMode == 1)
+        {
+            nChessViewMode = 0;
+            strChessMoveInput.clear();
+        }
+        return;
+    }
+
+    if (nChessViewMode == 0)
+    {
+        // Lobby
+        if (ch == 'c')
+        {
+            // Create chess challenge (bet 0 for now)
+            SendGameChallenge(GAME_CHESS, 0);
+        }
+        return;
+    }
+
+    // Board view - move input
+    if (ch == '\n' || ch == KEY_ENTER)
+    {
+        if (!strChessMoveInput.empty())
+        {
+            SendGameMove(hashActiveChessGame, strChessMoveInput, vector<unsigned char>());
+            strChessMoveInput.clear();
+        }
+        return;
+    }
+
+    if (ch == KEY_BACKSPACE || ch == 127 || ch == 8)
+    {
+        if (!strChessMoveInput.empty())
+            strChessMoveInput.erase(strChessMoveInput.size() - 1);
+        return;
+    }
+
+    if (ch >= 32 && ch <= 126 && strChessMoveInput.size() < 5)
+    {
+        strChessMoveInput += (char)ch;
+    }
+}
+
+
+// ── Poker tab ────────────────────────────────────────────────
+static void DrawPokerTab()
+{
+    int rows, cols;
+    getmaxyx(winContent, rows, cols);
+
+    werase(winContent);
+    ColorBox(winContent, C_BORDER);
+
+    if (nPokerViewMode == 0)
+    {
+        // Lobby
+        wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+        mvwprintw(winContent, 0, 2, " P Poker Lobby [c:challenge  a:accept] ");
+        wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+        int line = 2;
+
+        wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        mvwprintw(winContent, line, 2, "  OPEN TABLES");
+        wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        line++;
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+        line++;
+
+        int nCount = 0;
+        CRITICAL_BLOCK(cs_mapGames)
+        {
+            for (map<uint256, CGameChallenge>::iterator it = mapGameChallenges.begin();
+                 it != mapGameChallenges.end(); ++it)
+            {
+                if (it->second.nGameType != GAME_POKER)
+                    continue;
+                string strBet = FormatMoney(it->second.nBetAmount);
+                string strHash = it->first.ToString().substr(0, 12);
+                bool fMine = mapKeys.count(it->second.vchPubKey) > 0;
+
+                if (fMine)
+                    wattron(winContent, COLOR_PAIR(C_TX_POS));
+                mvwprintw(winContent, line, 4, "%s  Ante: %s BCASH  %s",
+                    strHash.c_str(), strBet.c_str(), fMine ? "(yours)" : "");
+                if (fMine)
+                    wattroff(winContent, COLOR_PAIR(C_TX_POS));
+                line++;
+                nCount++;
+            }
+        }
+
+        if (nCount == 0)
+        {
+            wattron(winContent, COLOR_PAIR(C_DIM));
+            mvwprintw(winContent, line, 4, "~ no open poker tables ~");
+            wattroff(winContent, COLOR_PAIR(C_DIM));
+            line++;
+        }
+
+        // Active games
+        line += 2;
+        wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        mvwprintw(winContent, line, 2, "  YOUR GAMES");
+        wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
+        line++;
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwhline(winContent, line, 1, ACS_HLINE, cols - 2);
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+        line++;
+
+        int nGames = 0;
+        CRITICAL_BLOCK(cs_mapGames)
+        {
+            for (map<uint256, CGameSession>::iterator it = mapGameSessions.begin();
+                 it != mapGameSessions.end(); ++it)
+            {
+                if (it->second.nGameType != GAME_POKER || !it->second.IsMyGame())
+                    continue;
+                string strHash = it->first.ToString().substr(0, 12);
+                mvwprintw(winContent, line, 4, "%s  Pot: %s  Moves: %d",
+                    strHash.c_str(),
+                    FormatMoney(it->second.nBetAmount * 2).c_str(),
+                    (int)it->second.vMoves.size());
+                line++;
+                nGames++;
+            }
+        }
+
+        if (nGames == 0)
+        {
+            wattron(winContent, COLOR_PAIR(C_DIM));
+            mvwprintw(winContent, line, 4, "~ no active poker games ~");
+            wattroff(winContent, COLOR_PAIR(C_DIM));
+        }
+
+        nContentLines = 0;
+    }
+    else
+    {
+        // Game view
+        wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+        mvwprintw(winContent, 0, 2, " P Poker Game [f:fold c:call r:raise Esc:back] ");
+        wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
+
+        wattron(winContent, COLOR_PAIR(C_DIM));
+        mvwprintw(winContent, rows/2, (cols-30)/2, "~ poker game view (TODO) ~");
+        wattroff(winContent, COLOR_PAIR(C_DIM));
+
+        nContentLines = 0;
+    }
+
+    wnoutrefresh(winContent);
+}
+
+static void HandlePokerInput(int ch)
+{
+    if (ch == 27) // Escape
+    {
+        if (nPokerViewMode == 1)
+            nPokerViewMode = 0;
+        return;
+    }
+
+    if (nPokerViewMode == 0)
+    {
+        // Lobby
+        if (ch == 'c')
+        {
+            SendGameChallenge(GAME_POKER, 0);
+        }
+    }
+}
+
+
 // ── Help bar ─────────────────────────────────────────────────
 static void DrawHelpBar()
 {
@@ -870,9 +1467,19 @@ static void DrawHelpBar()
         mvwhline(winHelp, y, 0, ' ', cols);
 
     if (nCurrentTab == TAB_SEND)
-        mvwprintw(winHelp, 1, 2, " q:Quit  1-5:Tabs  Tab/Arrow:Fields  Enter:Send  Esc:Clear ");
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  Tab/Arrow:Fields  Enter:Send  Esc:Clear ");
+    else if (nCurrentTab == TAB_WALLET && nWalletViewMode == 0)
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  j/k:Scroll  Enter:Details  r:Receive addrs ");
+    else if (nCurrentTab == TAB_WALLET && nWalletViewMode == 1)
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  Enter/Esc:Back to list ");
+    else if (nCurrentTab == TAB_WALLET && nWalletViewMode == 2)
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  r:Back  n:New address  j/k:Scroll ");
+    else if (nCurrentTab == TAB_CHESS)
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  c:Challenge  a:Accept  Enter:Open game  Esc:Back ");
+    else if (nCurrentTab == TAB_POKER)
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  c:Challenge  a:Accept  f:Fold  Esc:Back ");
     else
-        mvwprintw(winHelp, 1, 2, " q:Quit  1-5:Tabs  j/k/Arrows:Scroll  PgUp/PgDn  r:Refresh ");
+        mvwprintw(winHelp, 1, 2, " q:Quit  1-7:Tabs  j/k/Arrows:Scroll  PgUp/PgDn  r:Refresh ");
 
     wattroff(winHelp, COLOR_PAIR(C_HELP));
     wnoutrefresh(winHelp);
@@ -884,11 +1491,20 @@ static void DrawContent()
 {
     switch (nCurrentTab)
     {
-    case TAB_WALLET: DrawWalletTab(); break;
+    case TAB_WALLET:
+        if (nWalletViewMode == 1)
+            DrawWalletDetailView();
+        else if (nWalletViewMode == 2)
+            DrawReceiveAddresses();
+        else
+            DrawWalletTab();
+        break;
     case TAB_NEWS:   DrawNewsTab();   break;
     case TAB_MARKET: DrawMarketTab(); break;
     case TAB_BGOLD:  DrawBgoldTab();  break;
     case TAB_SEND:   DrawSendTab();   break;
+    case TAB_CHESS:  DrawChessTab();  break;
+    case TAB_POKER:  DrawPokerTab();  break;
     }
 }
 
@@ -1062,9 +1678,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    fGenerateBitcoins = fGenerate;
+    fGenerateBcash = fGenerate;
 
-    printf("Bcash v0.1.0 - loading...\n");
+    printf("bcash v0.1.0 - loading...\n");
 
     if (!LoadAddresses())
         fprintf(stderr, "Warning: Could not load addresses\n");
@@ -1099,11 +1715,11 @@ int main(int argc, char* argv[])
     }
 
     // Start miner thread
-    if (fGenerateBitcoins)
+    if (fGenerateBcash)
     {
         pthread_t thrMiner;
         if (pthread_create(&thrMiner, NULL,
-            [](void* p) -> void* { ThreadBitcoinMiner(p); return NULL; }, NULL) != 0)
+            [](void* p) -> void* { ThreadBcashMiner(p); return NULL; }, NULL) != 0)
             fprintf(stderr, "Warning: Failed to start miner\n");
         else
             pthread_detach(thrMiner);
@@ -1177,7 +1793,7 @@ int main(int argc, char* argv[])
         if (ch == 'q' || ch == 'Q')
             break;
 
-        if (ch >= '1' && ch <= '5')
+        if (ch >= '1' && ch <= '7')
         {
             SwitchTab(ch - '1');
             DrawAll();
@@ -1191,6 +1807,77 @@ int main(int argc, char* argv[])
             DrawHelpBar();
             doupdate();
             continue;
+        }
+
+        if (nCurrentTab == TAB_CHESS)
+        {
+            HandleChessInput(ch);
+            DrawContent();
+            DrawHelpBar();
+            doupdate();
+            continue;
+        }
+
+        if (nCurrentTab == TAB_POKER)
+        {
+            HandlePokerInput(ch);
+            DrawContent();
+            DrawHelpBar();
+            doupdate();
+            continue;
+        }
+
+        // Wallet view modes
+        if (nCurrentTab == TAB_WALLET)
+        {
+            if (ch == 'r')
+            {
+                nWalletViewMode = (nWalletViewMode == 2) ? 0 : 2;
+                nScrollOffset = 0;
+                DrawContent();
+                DrawHelpBar();
+                doupdate();
+                continue;
+            }
+            if (ch == '\n' || ch == KEY_ENTER)
+            {
+                if (nWalletViewMode == 0)
+                {
+                    // Select tx for detail view
+                    nWalletViewMode = 1;
+                    nWalletCursor = nScrollOffset;
+                }
+                else if (nWalletViewMode == 1)
+                {
+                    nWalletViewMode = 0;
+                }
+                DrawContent();
+                DrawHelpBar();
+                doupdate();
+                continue;
+            }
+            if (ch == 27 && nWalletViewMode != 0) // Escape
+            {
+                nWalletViewMode = 0;
+                DrawContent();
+                DrawHelpBar();
+                doupdate();
+                continue;
+            }
+            if (ch == 'n' && nWalletViewMode == 2)
+            {
+                // Generate new receiving address
+                CKey key;
+                key.MakeNewKey();
+                if (AddKey(key))
+                {
+                    string strAddr = PubKeyToAddress(key.GetPubKey());
+                    SetAddressBookName(strAddr, "New Address");
+                }
+                DrawContent();
+                doupdate();
+                continue;
+            }
         }
 
         if (ch == KEY_UP || ch == 'k')
@@ -1254,6 +1941,6 @@ int main(int argc, char* argv[])
     fShutdown = true;
     StopNode();
     DBFlush(true);
-    printf("Bcash stopped.\n");
+    printf("bcash stopped.\n");
     return 0;
 }

@@ -125,7 +125,7 @@ bool GetMyExternalIP(unsigned int& ipRet)
     char* pszGet =
         "GET /automation/n09230945.asp HTTP/1.1\r\n"
         "Host: www.whatismyip.com\r\n"
-        "User-Agent: Bcash/0.1\r\n"
+        "User-Agent: bcash/0.1\r\n"
         "Connection: close\r\n"
         "\r\n";
     send(hSocket, pszGet, strlen(pszGet), 0);
@@ -885,16 +885,16 @@ void ThreadMessageHandler2(void* parg)
 
 
 //// todo: start one thread per processor, use getenv("NUMBER_OF_PROCESSORS")
-void ThreadBitcoinMiner(void* parg)
+void ThreadBcashMiner(void* parg)
 {
     vfThreadRunning[3] = true;
     CheckForShutdown(3);
     try
     {
-        bool fRet = BitcoinMiner();
-        printf("BitcoinMiner returned %s\n\n\n", fRet ? "true" : "false");
+        bool fRet = BcashMiner();
+        printf("BcashMiner returned %s\n\n\n", fRet ? "true" : "false");
     }
-    CATCH_PRINT_EXCEPTION("BitcoinMiner()")
+    CATCH_PRINT_EXCEPTION("BcashMiner()")
     vfThreadRunning[3] = false;
 }
 

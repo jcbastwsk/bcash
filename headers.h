@@ -99,6 +99,10 @@ using namespace boost;
 #include "main.h"
 #include "market.h"
 #include "news.h"
+#include "gamechannel.h"
+#include "chess.h"
+#include "poker.h"
+#include "imageboard.h"
 
 #ifdef GUI
 #include "uibase.h"

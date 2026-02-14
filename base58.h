@@ -181,15 +181,15 @@ inline bool AddressToHash160(const string& str, uint160& hash160Ret)
     return AddressToHash160(str.c_str(), hash160Ret);
 }
 
-inline bool IsValidBitcoinAddress(const char* psz)
+inline bool IsValidBcashAddress(const char* psz)
 {
     uint160 hash160;
     return AddressToHash160(psz, hash160);
 }
 
-inline bool IsValidBitcoinAddress(const string& str)
+inline bool IsValidBcashAddress(const string& str)
 {
-    return IsValidBitcoinAddress(str.c_str());
+    return IsValidBcashAddress(str.c_str());
 }
 
 
@@ -198,4 +198,29 @@ inline bool IsValidBitcoinAddress(const string& str)
 inline string PubKeyToAddress(const vector<unsigned char>& vchPubKey)
 {
     return Hash160ToAddress(Hash160(vchPubKey));
+}
+
+
+// WIF (Wallet Import Format) private key encoding
+// Format: 0x80 + 32-byte private key + 4-byte checksum → Base58
+inline string PrivKeyToWIF(const CPrivKey& vchPrivKey)
+{
+    vector<unsigned char> vch(1, 0x80);
+    // CPrivKey is DER-encoded; extract raw 32-byte key
+    // For simplicity, encode the full DER privkey
+    vch.insert(vch.end(), vchPrivKey.begin(), vchPrivKey.end());
+    return EncodeBase58Check(vch);
+}
+
+inline bool WIFToPrivKey(const string& strWIF, CPrivKey& vchPrivKeyRet)
+{
+    vector<unsigned char> vch;
+    if (!DecodeBase58Check(strWIF, vch))
+        return false;
+    if (vch.empty())
+        return false;
+    if (vch[0] != 0x80)
+        return false;
+    vchPrivKeyRet.assign(vch.begin() + 1, vch.end());
+    return true;
 }

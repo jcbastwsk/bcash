@@ -284,7 +284,7 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
     m_listCtrl->SetFocus();
     SetIcon(wxNullIcon);
-    m_menuOptions->Check(wxID_OPTIONSGENERATEBITCOINS, fGenerateBitcoins);
+    m_menuOptions->Check(wxID_OPTIONSGENERATEBCASH, fGenerateBcash);
 
     // Init toolbar with placeholder bitmaps (no resource bitmaps on UNIX)
     m_toolBar->ClearTools();
@@ -372,7 +372,7 @@ void Shutdown(void* parg)
         StopNode();
         DBFlush(true);
 
-        printf("Bcash exiting\n");
+        printf("bcash exiting\n");
         exit(0);
     }
 }
@@ -841,9 +841,9 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
 
     // Update status bar
     string strGen = "";
-    if (fGenerateBitcoins)
+    if (fGenerateBcash)
         strGen = "    Generating";
-    if (fGenerateBitcoins && vNodes.empty())
+    if (fGenerateBcash && vNodes.empty())
         strGen = "(not connected)";
     m_statusBar->SetStatusText(strGen, 1);
 
@@ -906,13 +906,13 @@ void CMainFrame::OnMenuFileExit(wxCommandEvent& event)
 
 void CMainFrame::OnMenuOptionsGenerate(wxCommandEvent& event)
 {
-    fGenerateBitcoins = event.IsChecked();
+    fGenerateBcash = event.IsChecked();
     nTransactionsUpdated++;
-    CWalletDB().WriteSetting("fGenerateBitcoins", fGenerateBitcoins);
+    CWalletDB().WriteSetting("fGenerateBcash", fGenerateBcash);
 
-    if (fGenerateBitcoins)
-        if (_beginthread(ThreadBitcoinMiner, 0, NULL) == -1)
-            printf("Error: _beginthread(ThreadBitcoinMiner) failed\n");
+    if (fGenerateBcash)
+        if (_beginthread(ThreadBcashMiner, 0, NULL) == -1)
+            printf("Error: _beginthread(ThreadBcashMiner) failed\n");
 
     Refresh();
     Update();
@@ -1376,11 +1376,11 @@ CSendDialog::CSendDialog(wxWindow* parent, const wxString& strAddress) : CSendDi
 void CSendDialog::OnTextAddress(wxCommandEvent& event)
 {
     // Check mark
-    bool fBitcoinAddress = IsValidBitcoinAddress(m_textCtrlAddress->GetValue());
-    m_bitmapCheckMark->Show(fBitcoinAddress);
+    bool fBcashAddress = IsValidBcashAddress(m_textCtrlAddress->GetValue());
+    m_bitmapCheckMark->Show(fBcashAddress);
 
-    // Grey out message if bitcoin address
-    bool fEnable = !fBitcoinAddress;
+    // Grey out message if bcash address
+    bool fEnable = !fBcashAddress;
     m_staticTextFrom->Enable(fEnable);
     m_textCtrlFrom->Enable(fEnable);
     m_staticTextMessage->Enable(fEnable);
@@ -1444,13 +1444,13 @@ void CSendDialog::OnButtonSend(wxCommandEvent& event)
         return;
     }
 
-    // Parse bitcoin address
+    // Parse bcash address
     uint160 hash160;
-    bool fBitcoinAddress = AddressToHash160(strAddress, hash160);
+    bool fBcashAddress = AddressToHash160(strAddress, hash160);
 
-    if (fBitcoinAddress)
+    if (fBcashAddress)
     {
-        // Send to bitcoin address
+        // Send to bcash address
         CScript scriptPubKey;
         scriptPubKey << OP_DUP << OP_HASH160 << hash160 << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -1829,7 +1829,7 @@ CYourAddressDialog::CYourAddressDialog(wxWindow* parent, const string& strInitSe
 {
     // Init column headers
     m_listCtrl->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT, 200);
-    m_listCtrl->InsertColumn(1, "Bitcoin Address", wxLIST_FORMAT_LEFT, 350);
+    m_listCtrl->InsertColumn(1, "bcash Address", wxLIST_FORMAT_LEFT, 350);
     m_listCtrl->SetFocus();
 
     // Fill listctrl with address book data
@@ -1887,7 +1887,7 @@ void CYourAddressDialog::OnButtonRename(wxCommandEvent& event)
         return;
     string strName = (string)m_listCtrl->GetItemText(nIndex);
     string strAddress = (string)GetItemText(m_listCtrl, nIndex, 1);
-    CGetTextFromUserDialog dialog(this, "Rename Bitcoin Address", "New Name", strName);
+    CGetTextFromUserDialog dialog(this, "Rename bcash Address", "New Name", strName);
     if (!dialog.ShowModal())
         return;
     strName = dialog.GetValue();
@@ -1901,7 +1901,7 @@ void CYourAddressDialog::OnButtonRename(wxCommandEvent& event)
 void CYourAddressDialog::OnButtonNew(wxCommandEvent& event)
 {
     // Ask name
-    CGetTextFromUserDialog dialog(this, "New Bitcoin Address", "Name", "");
+    CGetTextFromUserDialog dialog(this, "New bcash Address", "Name", "");
     if (!dialog.ShowModal())
         return;
     string strName = dialog.GetValue();
@@ -2973,7 +2973,7 @@ bool CMyApp::OnInit2()
 {
     //// debug print
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("Bcash CMyApp::OnInit()\n");
+    printf("bcash CMyApp::OnInit()\n");
 
     //
     // Limit to single instance per user
@@ -2981,7 +2981,7 @@ bool CMyApp::OnInit2()
     //
     const char* pszHome = getenv("HOME");
     if (!pszHome) pszHome = "/tmp";
-    wxString strMutexName = wxString("Bcash.") + pszHome;
+    wxString strMutexName = wxString("bcash.") + pszHome;
     for (size_t i = 0; i < strMutexName.size(); i++)
         if (!isalnum(strMutexName[i]))
             strMutexName[i] = '.';
@@ -3042,7 +3042,7 @@ bool CMyApp::OnInit2()
         wxSTAY_ON_TOP | wxFRAME_NO_TASKBAR | wxBORDER_SIMPLE);
     pSplash->SetBackgroundColour(wxColour(255, 255, 255));
     wxBoxSizer* pSizer = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* pSplashTitle = new wxStaticText(pSplash, wxID_ANY, "Bcash",
+    wxStaticText* pSplashTitle = new wxStaticText(pSplash, wxID_ANY, "bcash",
         wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
     pSplashTitle->SetFont(wxFont(16, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
     wxStaticText* pSplashStatus = new wxStaticText(pSplash, wxID_ANY, "Starting...",
@@ -3123,9 +3123,9 @@ bool CMyApp::OnInit2()
     if (mapArgs.count("/gen"))
     {
         if (mapArgs["/gen"].empty())
-            fGenerateBitcoins = true;
+            fGenerateBcash = true;
         else
-            fGenerateBitcoins = atoi(mapArgs["/gen"].c_str());
+            fGenerateBcash = atoi(mapArgs["/gen"].c_str());
     }
 
     //
@@ -3140,9 +3140,9 @@ bool CMyApp::OnInit2()
         if (!StartNode(strErrors))
             wxMessageBox(strErrors);
 
-        if (fGenerateBitcoins)
-            if (_beginthread(ThreadBitcoinMiner, 0, NULL) == -1)
-                printf("Error: _beginthread(ThreadBitcoinMiner) failed\n");
+        if (fGenerateBcash)
+            if (_beginthread(ThreadBcashMiner, 0, NULL) == -1)
+                printf("Error: _beginthread(ThreadBcashMiner) failed\n");
 
         //
         // Tests
@@ -3364,14 +3364,14 @@ void CPeersDialog::OnButtonClose(wxCommandEvent& event)
 
 
 
-// randsendtest to bitcoin address
+// randsendtest to bcash address
 void ThreadRandSendTest(void* parg)
 {
     string strAddress = *(string*)parg;
     uint160 hash160;
     if (!AddressToHash160(strAddress, hash160))
     {
-        wxMessageBox(strprintf("ThreadRandSendTest: Bitcoin address '%s' not valid ", strAddress.c_str()));
+        wxMessageBox(strprintf("ThreadRandSendTest: bcash address '%s' not valid ", strAddress.c_str()));
         return;
     }
 

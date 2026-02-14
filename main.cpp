@@ -52,7 +52,7 @@ string strSetDataDir;
 int nDropMessagesTest = 0;
 
 // Settings
-int fGenerateBitcoins;
+int fGenerateBcash;
 int64 nTransactionFee = 0;
 CAddress addrIncoming;
 
@@ -1370,7 +1370,7 @@ string GetAppDir()
 #ifdef _WIN32
     else if (getenv("APPDATA"))
     {
-        strDir = strprintf("%s\\Bcash", getenv("APPDATA"));
+        strDir = strprintf("%s\\bcash", getenv("APPDATA"));
     }
     else if (getenv("USERPROFILE"))
     {
@@ -1381,7 +1381,7 @@ string GetAppDir()
             fMkdirDone = true;
             _mkdir(strAppData.c_str());
         }
-        strDir = strprintf("%s\\Bcash", strAppData.c_str());
+        strDir = strprintf("%s\\bcash", strAppData.c_str());
     }
     else
     {
@@ -1618,6 +1618,21 @@ bool AlreadyHave(CTxDB& txdb, const CInv& inv)
     case MSG_NEWS:        return mapNewsItems.count(inv.hash);
     case MSG_NEWSVOTE:    return false;  // always accept votes
     case MSG_BGOLD_BLOCK: return mapBgoldBlocks.count(inv.hash);
+    case MSG_GAME_CHALLENGE:
+        CRITICAL_BLOCK(cs_mapGames)
+            return mapGameChallenges.count(inv.hash);
+        return false;
+    case MSG_GAME_ACCEPT:
+    case MSG_GAME_MOVE:
+    case MSG_GAME_SETTLE:
+    case MSG_GAME_RESULT: return false;  // direct messages, always accept
+    case MSG_BGOLD_PROOF: return false;  // always accept proofs
+    case MSG_IMAGE_POST:
+        CRITICAL_BLOCK(cs_imageboard)
+            return mapImagePosts.count(inv.hash);
+        return false;
+    case MSG_IMAGE_REQUEST:
+    case MSG_IMAGE_DATA:  return false;  // always accept
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1988,6 +2003,106 @@ bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     }
 
 
+    else if (strCommand == "product")
+    {
+        CDataStream vMsg(vRecv);
+        CProduct product;
+        vRecv >> product;
+        CInv inv(MSG_PRODUCT, product.GetHash());
+        pfrom->AddInventoryKnown(inv);
+        if (product.CheckProduct())
+        {
+            AdvertInsert(product);
+            RelayMessage(inv, vMsg);
+            mapAlreadyAskedFor.erase(inv);
+        }
+    }
+
+
+    else if (strCommand == "gamechallenge")
+    {
+        CDataStream vMsg(vRecv);
+        CGameChallenge challenge;
+        vRecv >> challenge;
+        CInv inv(MSG_GAME_CHALLENGE, challenge.GetHash());
+        pfrom->AddInventoryKnown(inv);
+        if (challenge.CheckSignature())
+        {
+            AcceptGameChallenge(challenge);
+            RelayMessage(inv, vMsg);
+            mapAlreadyAskedFor.erase(inv);
+        }
+    }
+
+
+    else if (strCommand == "gameaccept")
+    {
+        CGameAccept accept;
+        vRecv >> accept;
+        if (accept.CheckSignature())
+            AcceptGameAccept(accept);
+    }
+
+
+    else if (strCommand == "gamemove")
+    {
+        CGameMove move;
+        vRecv >> move;
+        if (move.CheckSignature())
+            ProcessGameMove(move);
+    }
+
+
+    else if (strCommand == "gamesettle")
+    {
+        CGameSettle settle;
+        vRecv >> settle;
+        ProcessGameSettle(settle);
+    }
+
+
+    else if (strCommand == "imagepost")
+    {
+        CDataStream vMsg(vRecv);
+        CImagePost post;
+        vRecv >> post;
+        CInv inv(MSG_IMAGE_POST, post.GetHash());
+        pfrom->AddInventoryKnown(inv);
+        if (post.CheckPost())
+        {
+            AcceptImagePost(post);
+            RelayMessage(inv, vMsg);
+            mapAlreadyAskedFor.erase(inv);
+        }
+    }
+
+
+    else if (strCommand == "imagereq")
+    {
+        uint256 hashImage;
+        vRecv >> hashImage;
+        CRITICAL_BLOCK(cs_imageboard)
+        {
+            if (mapImageLibrary.count(hashImage))
+                pfrom->PushMessage("imagedata", hashImage, mapImageLibrary[hashImage]);
+        }
+    }
+
+
+    else if (strCommand == "imagedata")
+    {
+        uint256 hashImage;
+        vector<unsigned char> vchData;
+        vRecv >> hashImage >> vchData;
+        uint256 hashCheck = Hash(vchData.begin(), vchData.end());
+        if (hashCheck == hashImage)
+        {
+            CRITICAL_BLOCK(cs_imageboard)
+                mapImageLibrary[hashImage] = vchData;
+        }
+    }
+
+
     else if (strCommand == "block")
     {
         auto_ptr<CBlock> pblock(new CBlock);
@@ -2230,7 +2345,7 @@ void BlockSHA256(const void* pin, unsigned int nBlocks, void* pout)
 }
 
 
-bool BitcoinMiner()
+bool BcashMiner()
 {
     printf("BcashMiner started\n");
 #ifdef _WIN32
@@ -2242,7 +2357,7 @@ bool BitcoinMiner()
     CKey key;
     key.MakeNewKey();
     CBigNum bnExtraNonce = 0;
-    while (fGenerateBitcoins)
+    while (fGenerateBcash)
     {
         Sleep(50);
         CheckForShutdown(3);
@@ -2383,6 +2498,9 @@ bool BitcoinMiner()
             BlockSHA256(&tmp.block, nBlocks0, &tmp.hash1);
             BlockSHA256(&tmp.hash1, nBlocks1, &hash);
 
+            // 21e8 merge mining: check single-SHA-256 for bgold pattern
+            if (Has21e8Pattern(tmp.hash1))
+                Check21e8MinerHash(tmp.hash1, key.GetPubKey(), tmp.block.nNonce);
 
             if (hash <= hashTarget)
             {
@@ -2449,7 +2567,7 @@ bool BitcoinMiner()
                     break;
                 if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                     break;
-                if (!fGenerateBitcoins)
+                if (!fGenerateBcash)
                     break;
                 tmp.block.nTime = pblock->nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
             }

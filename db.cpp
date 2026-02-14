@@ -566,14 +566,14 @@ bool CWalletDB::LoadWallet(vector<unsigned char>& vchDefaultKeyRet)
             {
                 string strKey;
                 ssKey >> strKey;
-                if (strKey == "fGenerateBitcoins")  ssValue >> fGenerateBitcoins;
+                if (strKey == "fGenerateBcash" || strKey == "fGenerateBitcoins")  ssValue >> fGenerateBcash;
                 if (strKey == "nTransactionFee")    ssValue >> nTransactionFee;
                 if (strKey == "addrIncoming")       ssValue >> addrIncoming;
             }
         }
     }
 
-    printf("fGenerateBitcoins = %d\n", fGenerateBitcoins);
+    printf("fGenerateBcash = %d\n", fGenerateBcash);
     printf("nTransactionFee = %" PRId64 "\n", nTransactionFee);
     printf("addrIncoming = %s\n", addrIncoming.ToString().c_str());
 
