@@ -921,6 +921,39 @@ string HandleSetGenerate(const string& strParams)
     }
 }
 
+string HandleAddNode(const string& strParams)
+{
+    string strAddr = GetParamString(strParams, 0);
+    if (strAddr.empty())
+        return JSONError("Missing address parameter (host:port)", "null");
+
+    // Parse host:port
+    string strHost = strAddr;
+    unsigned short nPort = ntohs(DEFAULT_PORT);
+    size_t colonPos = strAddr.rfind(':');
+    if (colonPos != string::npos)
+    {
+        nPort = atoi(strAddr.substr(colonPos + 1).c_str());
+        strHost = strAddr.substr(0, colonPos);
+    }
+
+    // Resolve hostname
+    struct hostent* phostent = gethostbyname(strHost.c_str());
+    if (!phostent || !phostent->h_addr_list[0])
+        return JSONError("Could not resolve hostname: " + strHost, "null");
+
+    CAddress addr(*(unsigned int*)phostent->h_addr_list[0], htons(nPort));
+    printf("RPC addnode: connecting to %s\n", addr.ToString().c_str());
+
+    CNode* pnode = ConnectNode(addr);
+    if (pnode)
+    {
+        pnode->fNetworkNode = true;
+        return JSONValue("Connected to " + addr.ToString());
+    }
+    return JSONError("Failed to connect to " + strAddr, "null");
+}
+
 
 ///
 /// Web UI HTML - served on GET /
@@ -1879,6 +1912,14 @@ void ThreadRPCServer(void* parg)
                     strResponse = JSONResult(HandleGetMiningInfo(), strId);
                 else if (strMethod == "setgenerate")
                     strResponse = JSONResult(HandleSetGenerate(strParams), strId);
+                else if (strMethod == "addnode")
+                {
+                    string strResult = HandleAddNode(strParams);
+                    if (strResult.find("\"error\"") != string::npos)
+                        strResponse = strResult;
+                    else
+                        strResponse = JSONResult(strResult, strId);
+                }
                 else
                     strResponse = JSONError("Method not found: " + strMethod, strId);
             }
