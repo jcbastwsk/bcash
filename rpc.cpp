@@ -779,6 +779,11 @@ string HandleListTransactions()
         int64 nDebit = pwtx->GetDebit();
         int64 nNet = nCredit - nDebit;
         int nConf = pwtx->GetDepthInMainChain();
+        bool fImmature = pwtx->IsCoinBase() && pwtx->GetBlocksToMaturity() > 0;
+
+        // For immature coinbase, show the real value instead of 0
+        if (fImmature)
+            nNet = pwtx->CTransaction::GetCredit();
 
         if (!fFirst) str += ",";
         fFirst = false;
@@ -788,6 +793,7 @@ string HandleListTransactions()
         str += "\"time\":" + JSONValue(pwtx->GetTxTime()) + ",";
         str += "\"amount\":" + JSONValue(FormatMoney(nNet)) + ",";
         str += "\"confirmations\":" + JSONValue(nConf) + ",";
+        str += "\"immature\":" + JSONBool(fImmature) + ",";
         str += "\"coinbase\":" + JSONBool(pwtx->IsCoinBase());
 
         // Extract address
@@ -1261,7 +1267,7 @@ table{width:100%;border-collapse:collapse}
 th{text-align:left;padding:8px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border);font-weight:400}
 td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px}
 tr:hover td{background:var(--bg3)}
-.amount-pos{color:var(--green)}.amount-neg{color:#ff4444}
+.amount-pos{color:var(--green)}.amount-neg{color:#ff4444}.amount-immature{color:#442222}
 
 /* Section */
 .section{margin-bottom:24px}
@@ -1637,10 +1643,11 @@ async function refreshDashboard() {
   if (txs) {
     const tbody = document.getElementById('dash-txlist');
     tbody.innerHTML = txs.slice(0, 10).map(tx => {
-      const cls = tx.amount.startsWith('-') ? 'amount-neg' : 'amount-pos';
+      const cls = tx.immature ? 'amount-immature' : (tx.amount.startsWith('-') ? 'amount-neg' : 'amount-pos');
       const d = new Date(tx.time * 1000);
       const time = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
-      return '<tr><td>'+time+'</td><td>'+tx.type+'</td><td style="font-size:10px">'+(tx.address||'').substring(0,20)+'...</td><td class="'+cls+'">'+tx.amount+'</td><td>'+tx.confirmations+'</td></tr>';
+      const typeLabel = tx.immature ? 'generate <span style="font-size:9px;color:#662222">(immature)</span>' : tx.type;
+      return '<tr><td>'+time+'</td><td>'+typeLabel+'</td><td style="font-size:10px">'+(tx.address||'').substring(0,20)+'...</td><td class="'+cls+'">'+tx.amount+'</td><td>'+tx.confirmations+'</td></tr>';
     }).join('');
   }
 
@@ -1664,9 +1671,10 @@ async function refreshWallet() {
   if (!txs) return;
   const tbody = document.getElementById('wallet-txlist');
   tbody.innerHTML = txs.map(tx => {
-    const cls = tx.amount.startsWith('-') ? 'amount-neg' : 'amount-pos';
+    const cls = tx.immature ? 'amount-immature' : (tx.amount.startsWith('-') ? 'amount-neg' : 'amount-pos');
     const d = new Date(tx.time * 1000);
-    return '<tr><td>'+d.toLocaleDateString()+' '+d.toLocaleTimeString()+'</td><td>'+tx.type+'</td><td style="font-size:10px">'+(tx.address||'')+'</td><td class="'+cls+'">'+tx.amount+'</td><td>'+tx.confirmations+'</td></tr>';
+    const typeLabel = tx.immature ? 'generate <span style="font-size:9px;color:#662222">(immature)</span>' : tx.type;
+    return '<tr><td>'+d.toLocaleDateString()+' '+d.toLocaleTimeString()+'</td><td>'+typeLabel+'</td><td style="font-size:10px">'+(tx.address||'')+'</td><td class="'+cls+'">'+tx.amount+'</td><td>'+tx.confirmations+'</td></tr>';
   }).join('');
 }
 

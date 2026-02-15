@@ -1070,6 +1070,10 @@ bool StartNode(string& strError)
     }
 #endif
 
+    // Allow rapid restart by reusing TIME_WAIT sockets
+    int nOne = 1;
+    setsockopt(hListenSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&nOne, sizeof(nOne));
+
     // The sockaddr_in structure specifies the address family,
     // IP address, and port for the socket that is being bound
     int nRetryLimit = 15;
