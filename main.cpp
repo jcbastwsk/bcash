@@ -7,6 +7,7 @@
 #include "sha.h"
 #include "bgold.h"
 #include "cluster.h"
+#include "imageboard.h"
 
 #ifndef _WIN32
 #include <sys/stat.h>
@@ -989,6 +990,41 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     // Watch for transactions paying to me
     foreach(CTransaction& tx, vtx)
         AddToWalletIfMine(tx, this);
+
+    // Scan for on-chain imageboard posts (OP_RETURN with "IBRD" prefix)
+    foreach(CTransaction& tx, vtx)
+    {
+        foreach(const CTxOut& txout, tx.vout)
+        {
+            const CScript& script = txout.scriptPubKey;
+            if (script.size() > 5 && script[0] == OP_RETURN)
+            {
+                // Extract the data after OP_RETURN
+                vector<unsigned char> vchData;
+                opcodetype opcode;
+                CScript::const_iterator pc = script.begin();
+                pc++; // skip OP_RETURN
+                if (script.GetOp(pc, opcode, vchData) && vchData.size() > 4)
+                {
+                    // Check for "IBRD" magic prefix
+                    if (vchData[0] == 'I' && vchData[1] == 'B' && vchData[2] == 'R' && vchData[3] == 'D')
+                    {
+                        try
+                        {
+                            CDataStream ss(SER_NETWORK);
+                            ss.write((const char*)&vchData[4], vchData.size() - 4);
+                            CImagePost post;
+                            ss >> post;
+                            AcceptImagePost(post);
+                            printf("ConnectBlock() : found on-chain imageboard post in tx %s\n",
+                                tx.GetHash().ToString().substr(0,14).c_str());
+                        }
+                        catch (...) { }
+                    }
+                }
+            }
+        }
+    }
 
     return true;
 }

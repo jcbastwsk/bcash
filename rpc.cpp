@@ -956,7 +956,7 @@ string HandleAddNode(const string& strParams)
 }
 
 ///
-/// Imageboard RPC handlers
+/// Bitboard RPC handlers
 ///
 
 string HandleListThreads(const string& strParams)
@@ -1058,23 +1058,61 @@ string HandleGetThread(const string& strParams)
     return str;
 }
 
+// Simple base64 decode
+static vector<unsigned char> Base64Decode(const string& str)
+{
+    static const string b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    vector<unsigned char> result;
+    int val = 0, bits = -8;
+    for (size_t i = 0; i < str.size(); i++)
+    {
+        size_t pos = b64.find(str[i]);
+        if (pos == string::npos) continue;
+        val = (val << 6) + (int)pos;
+        bits += 6;
+        if (bits >= 0)
+        {
+            result.push_back((unsigned char)((val >> bits) & 0xFF));
+            bits -= 8;
+        }
+    }
+    return result;
+}
+
 string HandleCreatePost(const string& strParams)
 {
     string strBoard = GetParamString(strParams, 0);
     string strSubject = GetParamString(strParams, 1);
     string strComment = GetParamString(strParams, 2);
     string strThreadHash = GetParamString(strParams, 3);
+    string strImageB64 = GetParamString(strParams, 4);
+    string strWidth = GetParamString(strParams, 5);
+    string strHeight = GetParamString(strParams, 6);
 
     if (strBoard.empty())
         return JSONError("Missing board parameter", "null");
-    if (strComment.empty())
-        return JSONError("Missing comment", "null");
+    if (strComment.empty() && strImageB64.empty())
+        return JSONError("Need comment or image", "null");
 
     uint256 hashThread = 0;
     if (!strThreadHash.empty())
         hashThread.SetHex(strThreadHash);
 
-    vector<unsigned char> vchImage; // empty for now (image upload handled separately)
+    vector<unsigned char> vchImage;
+    if (!strImageB64.empty())
+    {
+        // Decode base64 raw RGB data and dither to 16-color palette
+        vector<unsigned char> vchRaw = Base64Decode(strImageB64);
+        int nWidth = atoi(strWidth.c_str());
+        int nHeight = atoi(strHeight.c_str());
+        if (nWidth > 0 && nHeight > 0 && (int)vchRaw.size() >= nWidth * nHeight * 3)
+        {
+            vector<unsigned char> vchDithered = DitherImage(vchRaw, nWidth, nHeight);
+            vchImage = CompressRLE(vchDithered);
+            printf("CreatePost: image %dx%d, raw %d bytes, dithered+RLE %d bytes\n",
+                nWidth, nHeight, (int)vchRaw.size(), (int)vchImage.size());
+        }
+    }
 
     if (!CreateImagePost(strBoard, strSubject, strComment, vchImage, hashThread))
         return JSONError("Failed to create post", "null");
@@ -1163,7 +1201,7 @@ input:focus,textarea:focus{border-color:var(--green)}
 .playing-card.red{color:#cc0000}
 .playing-card.facedown{background:var(--bg3);color:transparent;border:2px solid var(--green);background-image:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(0,255,65,.05) 5px,rgba(0,255,65,.05) 10px)}
 
-/* Imageboard */
+/* Bitboard */
 .thread{background:var(--bg2);border:1px solid var(--border);padding:12px;margin-bottom:8px;border-radius:3px}
 .thread-header{display:flex;gap:8px;font-size:11px;margin-bottom:4px}
 .tripcode{color:var(--green)}
@@ -1211,7 +1249,7 @@ input:focus,textarea:focus{border-color:var(--green)}
     <div class="nav-item" onclick="showTab('explorer')"><span class="icon">&#9830;</span>Explorer</div>
     <div class="nav-item" onclick="showTab('chess')"><span class="icon">&#9822;</span>Chess</div>
     <div class="nav-item" onclick="showTab('poker')"><span class="icon">&#9824;</span>Poker</div>
-    <div class="nav-item" onclick="showTab('imageboard')"><span class="icon">&#9998;</span>Imageboard</div>
+    <div class="nav-item" onclick="showTab('imageboard')"><span class="icon">&#9998;</span>Bitboard</div>
     <div class="nav-item" onclick="showTab('news')"><span class="icon">&#9889;</span>News</div>
     <div class="nav-item" onclick="showTab('market')"><span class="icon">&#9878;</span>Market</div>
     <div class="nav-item" onclick="showTab('peers')"><span class="icon">&#8943;</span>Peers</div>
@@ -1314,10 +1352,10 @@ input:focus,textarea:focus{border-color:var(--green)}
     </div>
 )HTML";
 
-    // ─── Imageboard Tab ───
+    // ─── Bitboard Tab ───
     html += R"HTML(
     <div class="tab" id="tab-imageboard">
-      <div class="section-title">Imageboard</div>
+      <div class="section-title">Bitboard</div>
       <div style="color:var(--dim);font-size:10px;margin-bottom:12px">All posts are broadcast on-chain as transactions. Tripcodes derived from your wallet key.</div>
       <div class="board-tabs">
         <div class="board-tab active" onclick="switchBoard('/b/')">/b/</div>
@@ -1329,6 +1367,7 @@ input:focus,textarea:focus{border-color:var(--green)}
         <div id="ib-thread-content"></div>
         <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-top:12px">
           <div class="form-row"><label>Reply:</label><textarea id="ib-reply" rows="2" placeholder="Your reply..."></textarea></div>
+          <div class="form-row"><label>Image:</label><input type="file" id="ib-reply-image" accept="image/*" style="font-size:11px"></div>
           <button class="btn btn-sm" onclick="postReply()">Reply</button>
           <span id="ib-reply-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
         </div>
@@ -1337,6 +1376,7 @@ input:focus,textarea:focus{border-color:var(--green)}
         <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-bottom:12px">
           <div class="form-row"><label>Subject:</label><input id="ib-subject" placeholder="Thread subject"></div>
           <div class="form-row"><label>Comment:</label><textarea id="ib-comment" rows="3" placeholder="Your message..."></textarea></div>
+          <div class="form-row"><label>Image:</label><input type="file" id="ib-image" accept="image/*" style="font-size:11px"><span id="ib-img-info" style="margin-left:8px;font-size:10px;color:var(--dim)"></span></div>
           <button class="btn btn-sm" onclick="postThread()">New Thread</button>
           <span id="ib-post-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
         </div>
@@ -1600,7 +1640,7 @@ function challengeChess() { alert('Chess challenges require peer connection'); }
 // Poker
 function pokerAction(action) { console.log('Poker:', action); }
 
-// Imageboard
+// Bitboard
 let currentBoard = '/b/';
 let currentThread = null;
 
@@ -1660,19 +1700,67 @@ function closeThread() {
   document.getElementById('ib-thread-view').style.display = 'none';
 }
 
+// Extract raw RGB pixels from an image file, resized to max 128px wide
+function extractImageRGB(file) {
+  return new Promise((resolve) => {
+    if (!file) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const MAX = 128;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        // Extract RGB (skip alpha)
+        const rgb = new Uint8Array(w * h * 3);
+        for (let i = 0; i < w * h; i++) {
+          rgb[i*3] = data[i*4];
+          rgb[i*3+1] = data[i*4+1];
+          rgb[i*3+2] = data[i*4+2];
+        }
+        // Base64 encode
+        let b64 = '';
+        const bytes = new Uint8Array(rgb);
+        for (let i = 0; i < bytes.length; i++) b64 += String.fromCharCode(bytes[i]);
+        resolve({ b64: btoa(b64), w, h });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function postThread() {
   const subj = document.getElementById('ib-subject').value;
   const comm = document.getElementById('ib-comment').value;
-  if (!comm) return;
+  const fileInput = document.getElementById('ib-image');
+  if (!comm && !fileInput.files[0]) return;
   const status = document.getElementById('ib-post-status');
-  status.textContent = 'Posting...';
+  status.textContent = 'Processing...';
   status.style.color = 'var(--dim)';
-  const r = await rpc('createpost', [currentBoard, subj, comm]);
+
+  let params = [currentBoard, subj, comm || ' ', ''];
+  const imgData = await extractImageRGB(fileInput.files[0]);
+  if (imgData) {
+    params.push(imgData.b64, String(imgData.w), String(imgData.h));
+    status.textContent = 'Posting with image ('+imgData.w+'x'+imgData.h+')...';
+  } else {
+    status.textContent = 'Posting...';
+  }
+
+  const r = await rpc('createpost', params);
   if (r) {
     status.textContent = 'Posted! (on-chain tx broadcast)';
     status.style.color = 'var(--green)';
     document.getElementById('ib-subject').value = '';
     document.getElementById('ib-comment').value = '';
+    fileInput.value = '';
     setTimeout(refreshBoard, 500);
   } else {
     status.textContent = 'Failed to post';
@@ -1683,14 +1771,21 @@ async function postThread() {
 async function postReply() {
   if (!currentThread) return;
   const comm = document.getElementById('ib-reply').value;
-  if (!comm) return;
+  const fileInput = document.getElementById('ib-reply-image');
+  if (!comm && !fileInput.files[0]) return;
   const status = document.getElementById('ib-reply-status');
   status.textContent = 'Posting reply...';
-  const r = await rpc('createpost', [currentBoard, '', comm, currentThread]);
+
+  let params = [currentBoard, '', comm || ' ', currentThread];
+  const imgData = await extractImageRGB(fileInput.files[0]);
+  if (imgData) params.push(imgData.b64, String(imgData.w), String(imgData.h));
+
+  const r = await rpc('createpost', params);
   if (r) {
     status.textContent = 'Reply posted!';
     status.style.color = 'var(--green)';
     document.getElementById('ib-reply').value = '';
+    fileInput.value = '';
     setTimeout(() => openThread(currentThread), 500);
   } else {
     status.textContent = 'Failed';

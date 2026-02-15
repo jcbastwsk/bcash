@@ -103,7 +103,7 @@ bool AcceptImagePost(const CImagePost& post)
 }
 
 
-// Create and broadcast a new image post
+// Create and broadcast a new image post as an on-chain transaction
 bool CreateImagePost(const string& strBoard, const string& strSubject, const string& strComment,
                      const vector<unsigned char>& vchImage, const uint256& hashThread)
 {
@@ -125,15 +125,55 @@ bool CreateImagePost(const string& strBoard, const string& strSubject, const str
     if (!post.Sign(key))
         return error("CreateImagePost() : failed to sign post");
 
-    if (!AcceptImagePost(post))
-        return error("CreateImagePost() : post not accepted");
-
-    // Relay to all peers
-    uint256 hash = post.GetHash();
+    // Serialize the post into a byte vector for OP_RETURN
     CDataStream ss(SER_NETWORK);
     ss << post;
-    CInv inv(MSG_IMAGE_POST, hash);
-    RelayMessage(inv, ss);
+    vector<unsigned char> vchData(ss.begin(), ss.end());
+
+    // Create an on-chain transaction with OP_RETURN embedding the post
+    // OP_RETURN <magic "IBRD"> <serialized post data>
+    CScript scriptData;
+    scriptData << OP_RETURN;
+    // Prefix with "IBRD" magic bytes so we can identify imageboard txs
+    vector<unsigned char> vchPayload;
+    vchPayload.push_back('I');
+    vchPayload.push_back('B');
+    vchPayload.push_back('R');
+    vchPayload.push_back('D');
+    vchPayload.insert(vchPayload.end(), vchData.begin(), vchData.end());
+    scriptData << vchPayload;
+
+    CWalletTx wtx;
+    int64 nFeeRequired;
+    if (!CreateTransaction(scriptData, 0, wtx, nFeeRequired))
+    {
+        printf("CreateImagePost() : failed to create transaction (fee: %s)\n",
+            FormatMoney(nFeeRequired).c_str());
+        // Fall back to P2P relay if we can't create a tx (e.g. no balance)
+        if (!AcceptImagePost(post))
+            return error("CreateImagePost() : post not accepted");
+        uint256 hash = post.GetHash();
+        CDataStream ss2(SER_NETWORK);
+        ss2 << post;
+        CInv inv(MSG_IMAGE_POST, hash);
+        RelayMessage(inv, ss2);
+        printf("CreateImagePost() : relayed via P2P (no funds for on-chain tx)\n");
+        return true;
+    }
+
+    if (!CommitTransactionSpent(wtx))
+        return error("CreateImagePost() : failed to commit transaction");
+
+    // Broadcast the transaction
+    wtx.AcceptTransaction();
+    wtx.RelayWalletTransaction();
+
+    // Also accept the post into local imageboard state
+    AcceptImagePost(post);
+
+    printf("CreateImagePost() : on-chain tx %s for post on %s\n",
+        wtx.GetHash().ToString().substr(0,14).c_str(),
+        post.strBoard.c_str());
 
     return true;
 }
