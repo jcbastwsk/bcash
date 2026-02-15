@@ -7,6 +7,7 @@
 #include "bgold.h"
 #include "rpc.h"
 #include "cluster.h"
+#include "imageboard.h"
 
 
 ///
@@ -954,6 +955,133 @@ string HandleAddNode(const string& strParams)
     return JSONError("Failed to connect to " + strAddr, "null");
 }
 
+///
+/// Imageboard RPC handlers
+///
+
+string HandleListThreads(const string& strParams)
+{
+    string strBoard = GetParamString(strParams, 0);
+    if (strBoard.empty())
+        strBoard = "/b/";
+
+    string str = "[";
+    bool fFirst = true;
+
+    CRITICAL_BLOCK(cs_imageboard)
+    {
+        if (mapBoardThreads.count(strBoard))
+        {
+            vector<uint256>& vThreads = mapBoardThreads[strBoard];
+            // Iterate in reverse (newest first)
+            for (int i = (int)vThreads.size() - 1; i >= 0; i--)
+            {
+                if (mapImagePosts.count(vThreads[i]))
+                {
+                    CImagePost& op = mapImagePosts[vThreads[i]];
+                    if (!fFirst) str += ",";
+                    fFirst = false;
+
+                    int nReplies = 0;
+                    if (mapThreadReplies.count(vThreads[i]))
+                        nReplies = (int)mapThreadReplies[vThreads[i]].size();
+
+                    str += "{";
+                    str += "\"hash\":" + JSONValue(vThreads[i].ToString()) + ",";
+                    str += "\"subject\":" + JSONValue(op.strSubject) + ",";
+                    str += "\"comment\":" + JSONValue(op.strComment) + ",";
+                    str += "\"time\":" + JSONValue((int64)op.nTime) + ",";
+                    str += "\"tripcode\":" + JSONValue(op.GetTripcode()) + ",";
+                    str += "\"replies\":" + JSONValue(nReplies) + ",";
+                    str += "\"hasimage\":" + JSONBool(!op.vchImage.empty());
+                    str += "}";
+                }
+            }
+        }
+    }
+
+    str += "]";
+    return str;
+}
+
+string HandleGetThread(const string& strParams)
+{
+    string strHash = GetParamString(strParams, 0);
+    if (strHash.empty())
+        return JSONError("Missing thread hash", "null");
+
+    uint256 hash;
+    hash.SetHex(strHash);
+
+    string str = "{";
+
+    CRITICAL_BLOCK(cs_imageboard)
+    {
+        if (!mapImagePosts.count(hash))
+            return JSONError("Thread not found", "null");
+
+        CImagePost& op = mapImagePosts[hash];
+        str += "\"op\":{";
+        str += "\"hash\":" + JSONValue(hash.ToString()) + ",";
+        str += "\"subject\":" + JSONValue(op.strSubject) + ",";
+        str += "\"comment\":" + JSONValue(op.strComment) + ",";
+        str += "\"time\":" + JSONValue((int64)op.nTime) + ",";
+        str += "\"tripcode\":" + JSONValue(op.GetTripcode()) + ",";
+        str += "\"hasimage\":" + JSONBool(!op.vchImage.empty());
+        str += "},";
+
+        str += "\"replies\":[";
+        bool fFirst = true;
+        if (mapThreadReplies.count(hash))
+        {
+            foreach(const uint256& replyHash, mapThreadReplies[hash])
+            {
+                if (mapImagePosts.count(replyHash))
+                {
+                    CImagePost& reply = mapImagePosts[replyHash];
+                    if (!fFirst) str += ",";
+                    fFirst = false;
+                    str += "{";
+                    str += "\"hash\":" + JSONValue(replyHash.ToString()) + ",";
+                    str += "\"comment\":" + JSONValue(reply.strComment) + ",";
+                    str += "\"time\":" + JSONValue((int64)reply.nTime) + ",";
+                    str += "\"tripcode\":" + JSONValue(reply.GetTripcode()) + ",";
+                    str += "\"hasimage\":" + JSONBool(!reply.vchImage.empty());
+                    str += "}";
+                }
+            }
+        }
+        str += "]";
+    }
+
+    str += "}";
+    return str;
+}
+
+string HandleCreatePost(const string& strParams)
+{
+    string strBoard = GetParamString(strParams, 0);
+    string strSubject = GetParamString(strParams, 1);
+    string strComment = GetParamString(strParams, 2);
+    string strThreadHash = GetParamString(strParams, 3);
+
+    if (strBoard.empty())
+        return JSONError("Missing board parameter", "null");
+    if (strComment.empty())
+        return JSONError("Missing comment", "null");
+
+    uint256 hashThread = 0;
+    if (!strThreadHash.empty())
+        hashThread.SetHex(strThreadHash);
+
+    vector<unsigned char> vchImage; // empty for now (image upload handled separately)
+
+    if (!CreateImagePost(strBoard, strSubject, strComment, vchImage, hashThread))
+        return JSONError("Failed to create post", "null");
+
+    return JSONValue("Post created");
+}
+
 
 ///
 /// Web UI HTML - served on GET /
@@ -1190,17 +1318,30 @@ input:focus,textarea:focus{border-color:var(--green)}
     html += R"HTML(
     <div class="tab" id="tab-imageboard">
       <div class="section-title">Imageboard</div>
+      <div style="color:var(--dim);font-size:10px;margin-bottom:12px">All posts are broadcast on-chain as transactions. Tripcodes derived from your wallet key.</div>
       <div class="board-tabs">
         <div class="board-tab active" onclick="switchBoard('/b/')">/b/</div>
         <div class="board-tab" onclick="switchBoard('/g/')">/g/</div>
         <div class="board-tab" onclick="switchBoard('/biz/')">/biz/</div>
       </div>
-      <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-bottom:12px">
-        <div class="form-row"><label>Subject:</label><input id="ib-subject" placeholder="Thread subject"></div>
-        <div class="form-row"><label>Comment:</label><textarea id="ib-comment" rows="3" placeholder="Your message..."></textarea></div>
-        <button class="btn btn-sm" onclick="postThread()">Post Thread</button>
+      <div id="ib-thread-view" style="display:none;margin-bottom:12px">
+        <div style="cursor:pointer;color:var(--green);font-size:11px;margin-bottom:8px" onclick="closeThread()">&larr; Back to board</div>
+        <div id="ib-thread-content"></div>
+        <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-top:12px">
+          <div class="form-row"><label>Reply:</label><textarea id="ib-reply" rows="2" placeholder="Your reply..."></textarea></div>
+          <button class="btn btn-sm" onclick="postReply()">Reply</button>
+          <span id="ib-reply-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
+        </div>
       </div>
-      <div id="ib-threads"></div>
+      <div id="ib-board-view">
+        <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-bottom:12px">
+          <div class="form-row"><label>Subject:</label><input id="ib-subject" placeholder="Thread subject"></div>
+          <div class="form-row"><label>Comment:</label><textarea id="ib-comment" rows="3" placeholder="Your message..."></textarea></div>
+          <button class="btn btn-sm" onclick="postThread()">New Thread</button>
+          <span id="ib-post-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
+        </div>
+        <div id="ib-threads"></div>
+      </div>
     </div>
 )HTML";
 
@@ -1276,6 +1417,7 @@ function showTab(name) {
   if (name === 'peers') refreshPeers();
   if (name === 'news') refreshNews();
   if (name === 'market') refreshMarket();
+  if (name === 'imageboard') refreshBoard();
   if (name === 'nodes') refreshNodes();
 }
 
@@ -1460,15 +1602,100 @@ function pokerAction(action) { console.log('Poker:', action); }
 
 // Imageboard
 let currentBoard = '/b/';
+let currentThread = null;
+
 function switchBoard(board) {
   currentBoard = board;
   document.querySelectorAll('.board-tab').forEach(t => t.classList.toggle('active', t.textContent === board));
+  closeThread();
+  refreshBoard();
 }
-function postThread() {
+
+async function refreshBoard() {
+  const threads = await rpc('listthreads', [currentBoard]);
+  const el = document.getElementById('ib-threads');
+  if (!threads || !threads.length) {
+    el.innerHTML = '<div style="color:var(--dim);padding:20px;text-align:center">No threads on '+currentBoard+' yet. Be the first to post.</div>';
+    return;
+  }
+  el.innerHTML = threads.map(t => {
+    const d = new Date(t.time * 1000);
+    const time = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+    return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px;cursor:pointer" onclick="openThread(\''+t.hash+'\')">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div style="font-weight:700;color:var(--white)">'+(t.subject||'(no subject)')+'</div>' +
+      '<div style="font-size:10px;color:var(--dim)">'+t.replies+' replies</div></div>' +
+      '<div style="margin-top:4px;font-size:12px;color:var(--text)">'+t.comment.substring(0,200)+(t.comment.length>200?'...':'')+'</div>' +
+      '<div style="margin-top:4px;font-size:10px;color:var(--dim)"><span style="color:var(--green)">'+t.tripcode+'</span> &middot; '+time+'</div>' +
+      '</div>';
+  }).join('');
+}
+
+async function openThread(hash) {
+  currentThread = hash;
+  document.getElementById('ib-board-view').style.display = 'none';
+  document.getElementById('ib-thread-view').style.display = 'block';
+  const thread = await rpc('getthread', [hash]);
+  if (!thread) return;
+  const op = thread.op;
+  const opTime = new Date(op.time * 1000);
+  let html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px">';
+  html += '<div style="font-weight:700;font-size:15px;color:var(--white)">'+(op.subject||'(no subject)')+'</div>';
+  html += '<div style="font-size:10px;color:var(--dim);margin:4px 0"><span style="color:var(--green)">'+op.tripcode+'</span> &middot; '+opTime.toLocaleString()+'</div>';
+  html += '<div style="margin-top:8px;white-space:pre-wrap">'+op.comment+'</div></div>';
+  if (thread.replies && thread.replies.length) {
+    thread.replies.forEach((r, i) => {
+      const rt = new Date(r.time * 1000);
+      html += '<div style="background:var(--bg3);border-left:2px solid var(--border);padding:10px;margin:4px 0 4px 16px;border-radius:2px">';
+      html += '<div style="font-size:10px;color:var(--dim)"><span style="color:var(--green)">'+r.tripcode+'</span> &middot; #'+(i+1)+' &middot; '+rt.toLocaleString()+'</div>';
+      html += '<div style="margin-top:4px;white-space:pre-wrap">'+r.comment+'</div></div>';
+    });
+  }
+  document.getElementById('ib-thread-content').innerHTML = html;
+}
+
+function closeThread() {
+  currentThread = null;
+  document.getElementById('ib-board-view').style.display = 'block';
+  document.getElementById('ib-thread-view').style.display = 'none';
+}
+
+async function postThread() {
   const subj = document.getElementById('ib-subject').value;
   const comm = document.getElementById('ib-comment').value;
   if (!comm) return;
-  console.log('Post:', currentBoard, subj, comm);
+  const status = document.getElementById('ib-post-status');
+  status.textContent = 'Posting...';
+  status.style.color = 'var(--dim)';
+  const r = await rpc('createpost', [currentBoard, subj, comm]);
+  if (r) {
+    status.textContent = 'Posted! (on-chain tx broadcast)';
+    status.style.color = 'var(--green)';
+    document.getElementById('ib-subject').value = '';
+    document.getElementById('ib-comment').value = '';
+    setTimeout(refreshBoard, 500);
+  } else {
+    status.textContent = 'Failed to post';
+    status.style.color = 'red';
+  }
+}
+
+async function postReply() {
+  if (!currentThread) return;
+  const comm = document.getElementById('ib-reply').value;
+  if (!comm) return;
+  const status = document.getElementById('ib-reply-status');
+  status.textContent = 'Posting reply...';
+  const r = await rpc('createpost', [currentBoard, '', comm, currentThread]);
+  if (r) {
+    status.textContent = 'Reply posted!';
+    status.style.color = 'var(--green)';
+    document.getElementById('ib-reply').value = '';
+    setTimeout(() => openThread(currentThread), 500);
+  } else {
+    status.textContent = 'Failed';
+    status.style.color = 'red';
+  }
 }
 
 // News
@@ -1915,6 +2142,24 @@ void ThreadRPCServer(void* parg)
                 else if (strMethod == "addnode")
                 {
                     string strResult = HandleAddNode(strParams);
+                    if (strResult.find("\"error\"") != string::npos)
+                        strResponse = strResult;
+                    else
+                        strResponse = JSONResult(strResult, strId);
+                }
+                else if (strMethod == "listthreads")
+                    strResponse = JSONResult(HandleListThreads(strParams), strId);
+                else if (strMethod == "getthread")
+                {
+                    string strResult = HandleGetThread(strParams);
+                    if (strResult.find("\"error\"") != string::npos)
+                        strResponse = strResult;
+                    else
+                        strResponse = JSONResult(strResult, strId);
+                }
+                else if (strMethod == "createpost")
+                {
+                    string strResult = HandleCreatePost(strParams);
                     if (strResult.find("\"error\"") != string::npos)
                         strResponse = strResult;
                     else
