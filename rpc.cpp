@@ -1058,6 +1058,68 @@ string HandleGetThread(const string& strParams)
     return str;
 }
 
+// Simple base64 encode
+static string Base64Encode(const vector<unsigned char>& data)
+{
+    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    string result;
+    int val = 0, bits = 0;
+    for (size_t i = 0; i < data.size(); i++)
+    {
+        val = (val << 8) + data[i];
+        bits += 8;
+        while (bits >= 6)
+        {
+            bits -= 6;
+            result += b64[(val >> bits) & 0x3F];
+        }
+    }
+    if (bits > 0)
+        result += b64[(val << (6 - bits)) & 0x3F];
+    while (result.size() % 4)
+        result += '=';
+    return result;
+}
+
+string HandleGetPostImage(const string& strParams)
+{
+    string strHash = GetParamString(strParams, 0);
+    if (strHash.empty())
+        return JSONError("Missing post hash", "null");
+
+    uint256 hash;
+    hash.SetHex(strHash);
+
+    CRITICAL_BLOCK(cs_imageboard)
+    {
+        if (!mapImagePosts.count(hash))
+            return JSONError("Post not found", "null");
+
+        CImagePost& post = mapImagePosts[hash];
+        if (post.vchImage.empty())
+            return JSONError("Post has no image", "null");
+
+        // Parse header: width (2 bytes LE) + height (2 bytes LE) + RLE data
+        if (post.vchImage.size() < 5)
+            return JSONError("Invalid image data", "null");
+
+        int nWidth = post.vchImage[0] | (post.vchImage[1] << 8);
+        int nHeight = post.vchImage[2] | (post.vchImage[3] << 8);
+
+        // Decompress RLE to indexed pixels
+        vector<unsigned char> vchRLE(post.vchImage.begin() + 4, post.vchImage.end());
+        vector<unsigned char> vchIndexed = DecompressRLE(vchRLE);
+
+        // Return as base64 indexed pixels with dimensions
+        string str = "{";
+        str += "\"width\":" + JSONValue(nWidth) + ",";
+        str += "\"height\":" + JSONValue(nHeight) + ",";
+        str += "\"pixels\":" + JSONValue(Base64Encode(vchIndexed));
+        str += "}";
+        return str;
+    }
+}
+
 // Simple base64 decode
 static vector<unsigned char> Base64Decode(const string& str)
 {
@@ -1099,23 +1161,49 @@ string HandleCreatePost(const string& strParams)
         hashThread.SetHex(strThreadHash);
 
     vector<unsigned char> vchImage;
+    string strMode = GetParamString(strParams, 7);
     if (!strImageB64.empty())
     {
-        // Decode base64 raw RGB data and dither to 16-color palette
-        vector<unsigned char> vchRaw = Base64Decode(strImageB64);
         int nWidth = atoi(strWidth.c_str());
         int nHeight = atoi(strHeight.c_str());
-        if (nWidth > 0 && nHeight > 0 && (int)vchRaw.size() >= nWidth * nHeight * 3)
+
+        if (strMode == "indexed")
         {
-            vector<unsigned char> vchDithered = DitherImage(vchRaw, nWidth, nHeight);
-            vchImage = CompressRLE(vchDithered);
-            printf("CreatePost: image %dx%d, raw %d bytes, dithered+RLE %d bytes\n",
-                nWidth, nHeight, (int)vchRaw.size(), (int)vchImage.size());
+            // Pre-dithered indexed pixels from client (1 byte per pixel, 0-15)
+            vector<unsigned char> vchIndexed = Base64Decode(strImageB64);
+            if (nWidth > 0 && nHeight > 0 && (int)vchIndexed.size() >= nWidth * nHeight)
+            {
+                vector<unsigned char> vchCompressed = CompressRLE(vchIndexed);
+                vchImage.push_back((unsigned char)(nWidth & 0xFF));
+                vchImage.push_back((unsigned char)((nWidth >> 8) & 0xFF));
+                vchImage.push_back((unsigned char)(nHeight & 0xFF));
+                vchImage.push_back((unsigned char)((nHeight >> 8) & 0xFF));
+                vchImage.insert(vchImage.end(), vchCompressed.begin(), vchCompressed.end());
+                printf("CreatePost: pre-dithered image %dx%d, indexed %d bytes, RLE %d bytes\n",
+                    nWidth, nHeight, (int)vchIndexed.size(), (int)vchImage.size());
+            }
+        }
+        else
+        {
+            // Raw RGB data - dither on server
+            vector<unsigned char> vchRaw = Base64Decode(strImageB64);
+            if (nWidth > 0 && nHeight > 0 && (int)vchRaw.size() >= nWidth * nHeight * 3)
+            {
+                vector<unsigned char> vchDithered = DitherImage(vchRaw, nWidth, nHeight);
+                vector<unsigned char> vchCompressed = CompressRLE(vchDithered);
+                vchImage.push_back((unsigned char)(nWidth & 0xFF));
+                vchImage.push_back((unsigned char)((nWidth >> 8) & 0xFF));
+                vchImage.push_back((unsigned char)(nHeight & 0xFF));
+                vchImage.push_back((unsigned char)((nHeight >> 8) & 0xFF));
+                vchImage.insert(vchImage.end(), vchCompressed.begin(), vchCompressed.end());
+                printf("CreatePost: image %dx%d, raw %d bytes, dithered+RLE %d bytes\n",
+                    nWidth, nHeight, (int)vchRaw.size(), (int)vchImage.size());
+            }
         }
     }
 
     if (!CreateImagePost(strBoard, strSubject, strComment, vchImage, hashThread))
-        return JSONError("Failed to create post", "null");
+        return JSONError("Insufficient funds — posts require on-chain transaction (mine blocks first)", "null");
 
     return JSONValue("Post created");
 }
@@ -1355,8 +1443,8 @@ input:focus,textarea:focus{border-color:var(--green)}
     // ─── Bitboard Tab ───
     html += R"HTML(
     <div class="tab" id="tab-imageboard">
-      <div class="section-title">Bitboard</div>
-      <div style="color:var(--dim);font-size:10px;margin-bottom:12px">All posts are broadcast on-chain as transactions. Tripcodes derived from your wallet key.</div>
+      <div style="text-align:center;margin-bottom:8px"><canvas id="ib-logo" style="image-rendering:pixelated" width="1" height="1"></canvas></div>
+      <div style="color:var(--dim);font-size:10px;margin-bottom:12px;text-align:center">On-chain imageboard. All posts are broadcast as transactions. Tripcodes derived from your wallet key.</div>
       <div class="board-tabs">
         <div class="board-tab active" onclick="switchBoard('/b/')">/b/</div>
         <div class="board-tab" onclick="switchBoard('/g/')">/g/</div>
@@ -1367,7 +1455,22 @@ input:focus,textarea:focus{border-color:var(--green)}
         <div id="ib-thread-content"></div>
         <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-top:12px">
           <div class="form-row"><label>Reply:</label><textarea id="ib-reply" rows="2" placeholder="Your reply..."></textarea></div>
-          <div class="form-row"><label>Image:</label><input type="file" id="ib-reply-image" accept="image/*" style="font-size:11px"></div>
+          <div class="form-row">
+            <label>Image:</label><input type="file" id="ib-reply-image" accept="image/*" style="font-size:11px" onchange="onImageSelect(this,'reply')">
+            <select id="ib-reply-dither" style="margin-left:8px;font-size:11px;background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 4px" onchange="updatePreview('reply')">
+              <option value="floyd-steinberg">Floyd-Steinberg</option>
+              <option value="ordered">Ordered (Bayer)</option>
+              <option value="atkinson">Atkinson</option>
+              <option value="none">No dithering</option>
+            </select>
+          </div>
+          <div id="ib-reply-preview" style="display:none;margin:8px 0;padding:8px;background:var(--bg3);border-radius:3px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div><div style="font-size:9px;color:var(--dim)">Original</div><canvas id="ib-reply-prev-orig" style="image-rendering:pixelated;border:1px solid var(--border)"></canvas></div>
+              <div><div style="font-size:9px;color:var(--dim)">Dithered (16-color CGA)</div><canvas id="ib-reply-prev-dith" style="image-rendering:pixelated;border:1px solid var(--border)"></canvas></div>
+            </div>
+            <div style="font-size:9px;color:var(--dim);margin-top:4px" id="ib-reply-prev-info"></div>
+          </div>
           <button class="btn btn-sm" onclick="postReply()">Reply</button>
           <span id="ib-reply-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
         </div>
@@ -1376,7 +1479,22 @@ input:focus,textarea:focus{border-color:var(--green)}
         <div class="section" style="background:var(--bg2);padding:12px;border-radius:3px;margin-bottom:12px">
           <div class="form-row"><label>Subject:</label><input id="ib-subject" placeholder="Thread subject"></div>
           <div class="form-row"><label>Comment:</label><textarea id="ib-comment" rows="3" placeholder="Your message..."></textarea></div>
-          <div class="form-row"><label>Image:</label><input type="file" id="ib-image" accept="image/*" style="font-size:11px"><span id="ib-img-info" style="margin-left:8px;font-size:10px;color:var(--dim)"></span></div>
+          <div class="form-row">
+            <label>Image:</label><input type="file" id="ib-image" accept="image/*" style="font-size:11px" onchange="onImageSelect(this,'main')">
+            <select id="ib-dither-algo" style="margin-left:8px;font-size:11px;background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 4px" onchange="updatePreview('main')">
+              <option value="floyd-steinberg">Floyd-Steinberg</option>
+              <option value="ordered">Ordered (Bayer)</option>
+              <option value="atkinson">Atkinson</option>
+              <option value="none">No dithering</option>
+            </select>
+          </div>
+          <div id="ib-preview" style="display:none;margin:8px 0;padding:8px;background:var(--bg3);border-radius:3px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div><div style="font-size:9px;color:var(--dim)">Original</div><canvas id="ib-prev-orig" style="image-rendering:pixelated;border:1px solid var(--border)"></canvas></div>
+              <div><div style="font-size:9px;color:var(--dim)">Dithered (16-color CGA)</div><canvas id="ib-prev-dith" style="image-rendering:pixelated;border:1px solid var(--border)"></canvas></div>
+            </div>
+            <div style="font-size:9px;color:var(--dim);margin-top:4px" id="ib-prev-info"></div>
+          </div>
           <button class="btn btn-sm" onclick="postThread()">New Thread</button>
           <span id="ib-post-status" style="margin-left:8px;font-size:10px;color:var(--dim)"></span>
         </div>
@@ -1408,7 +1526,7 @@ input:focus,textarea:focus{border-color:var(--green)}
     html += R"HTML(
     <div class="tab" id="tab-peers">
       <div class="section-title">Connected Peers</div>
-      <table><thead><tr><th>Address</th><th>Direction</th><th>Version</th><th>Sent</th><th>Received</th></tr></thead><tbody id="peers-list"></tbody></table>
+      <table><thead><tr><th>Address</th><th>Direction</th><th>Version</th></tr></thead><tbody id="peers-list"></tbody></table>
       <button class="btn btn-sm" style="margin-top:12px" onclick="refreshPeers()">Refresh</button>
     </div>
 )HTML";
@@ -1466,10 +1584,33 @@ setInterval(() => {
   document.getElementById('clock').textContent = new Date().toLocaleTimeString();
 }, 1000);
 
+// Block-found pop sound via Web Audio API
+let lastKnownHeight = 0;
+function playBlockPop() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch(e) {}
+}
+
 // Dashboard refresh
 async function refreshDashboard() {
   const info = await rpc('getmininginfo');
   if (!info) return;
+  const newHeight = info.blocks || 0;
+  if (lastKnownHeight > 0 && newHeight > lastKnownHeight) playBlockPop();
+  lastKnownHeight = newHeight;
   document.getElementById('dash-balance').textContent = info.balance || '0.00';
   document.getElementById('dash-height').textContent = info.blocks || 0;
   document.getElementById('dash-connections').textContent = info.connections || 0;
@@ -1640,15 +1781,183 @@ function challengeChess() { alert('Chess challenges require peer connection'); }
 // Poker
 function pokerAction(action) { console.log('Poker:', action); }
 
-// Bitboard
+// Bitboard - CGA 16-color palette
+const CGA=[[0,0,0],[0,0,170],[0,170,0],[0,170,170],[170,0,0],[170,0,170],[170,170,0],[170,170,170],
+  [85,85,85],[85,85,255],[85,255,85],[85,255,255],[255,85,85],[255,85,255],[255,255,85],[255,255,255]];
+
+function nearCGA(r,g,b) {
+  let best=0, bd=1e9;
+  for (let i=0; i<16; i++) {
+    const d=(r-CGA[i][0])**2 + (g-CGA[i][1])**2 + (b-CGA[i][2])**2;
+    if (d<bd) { bd=d; best=i; }
+  }
+  return best;
+}
+
+// Floyd-Steinberg error diffusion
+function ditherFS(rgb, w, h) {
+  const img = new Int16Array(w*h*3);
+  for (let i=0; i<w*h*3; i++) img[i] = rgb[i];
+  const out = new Uint8Array(w*h);
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    const i = (y*w+x)*3;
+    const r = Math.max(0, Math.min(255, img[i]));
+    const g = Math.max(0, Math.min(255, img[i+1]));
+    const b = Math.max(0, Math.min(255, img[i+2]));
+    const c = nearCGA(r, g, b);
+    out[y*w+x] = c;
+    const er = r-CGA[c][0], eg = g-CGA[c][1], eb = b-CGA[c][2];
+    if (x+1<w) { img[i+3]+=er*7/16; img[i+4]+=eg*7/16; img[i+5]+=eb*7/16; }
+    if (y+1<h) {
+      if (x>0) { const j=((y+1)*w+(x-1))*3; img[j]+=er*3/16; img[j+1]+=eg*3/16; img[j+2]+=eb*3/16; }
+      { const j=((y+1)*w+x)*3; img[j]+=er*5/16; img[j+1]+=eg*5/16; img[j+2]+=eb*5/16; }
+      if (x+1<w) { const j=((y+1)*w+(x+1))*3; img[j]+=er/16; img[j+1]+=eg/16; img[j+2]+=eb/16; }
+    }
+  }
+  return out;
+}
+
+// Bayer 4x4 ordered dithering
+function ditherOrd(rgb, w, h) {
+  const B = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+  const out = new Uint8Array(w*h);
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    const i = (y*w+x)*3;
+    const t = (B[y%4][x%4]/16 - 0.5) * 64;
+    out[y*w+x] = nearCGA(
+      Math.max(0, Math.min(255, rgb[i]+t)),
+      Math.max(0, Math.min(255, rgb[i+1]+t)),
+      Math.max(0, Math.min(255, rgb[i+2]+t)));
+  }
+  return out;
+}
+
+// Atkinson dithering (classic Mac style - diffuses 3/4 of error)
+function ditherAtk(rgb, w, h) {
+  const img = new Int16Array(w*h*3);
+  for (let i=0; i<w*h*3; i++) img[i] = rgb[i];
+  const out = new Uint8Array(w*h);
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    const i = (y*w+x)*3;
+    const r = Math.max(0, Math.min(255, img[i]));
+    const g = Math.max(0, Math.min(255, img[i+1]));
+    const b = Math.max(0, Math.min(255, img[i+2]));
+    const c = nearCGA(r, g, b);
+    out[y*w+x] = c;
+    const er = (r-CGA[c][0])/8, eg = (g-CGA[c][1])/8, eb = (b-CGA[c][2])/8;
+    for (const [dx,dy] of [[1,0],[2,0],[-1,1],[0,1],[1,1],[0,2]]) {
+      const nx=x+dx, ny=y+dy;
+      if (nx>=0 && nx<w && ny<h) { const j=(ny*w+nx)*3; img[j]+=er; img[j+1]+=eg; img[j+2]+=eb; }
+    }
+  }
+  return out;
+}
+
+// Nearest color only (no dithering)
+function ditherNone(rgb, w, h) {
+  const out = new Uint8Array(w*h);
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    const i = (y*w+x)*3;
+    out[y*w+x] = nearCGA(rgb[i], rgb[i+1], rgb[i+2]);
+  }
+  return out;
+}
+
+function doDither(rgb, w, h, algo) {
+  switch(algo) {
+    case 'ordered': return ditherOrd(rgb, w, h);
+    case 'atkinson': return ditherAtk(rgb, w, h);
+    case 'none': return ditherNone(rgb, w, h);
+    default: return ditherFS(rgb, w, h);
+  }
+}
+
+// Render indexed CGA pixels to a canvas
+function renderIdx(canvas, idx, w, h, scale) {
+  const s = scale || 1;
+  canvas.width = w * s; canvas.height = h * s;
+  const ctx = canvas.getContext('2d');
+  const id = ctx.createImageData(w, h);
+  for (let i=0; i<w*h; i++) {
+    const c = CGA[idx[i] || 0];
+    id.data[i*4]=c[0]; id.data[i*4+1]=c[1]; id.data[i*4+2]=c[2]; id.data[i*4+3]=255;
+  }
+  if (s > 1) {
+    const tc = document.createElement('canvas'); tc.width=w; tc.height=h;
+    tc.getContext('2d').putImageData(id, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tc, 0, 0, w*s, h*s);
+  } else { ctx.putImageData(id, 0, 0); }
+}
+
+let ibImgData = { main: null, reply: null };
 let currentBoard = '/b/';
 let currentThread = null;
+
+// Handle image file selection - auto-generate dithered preview
+function onImageSelect(input, which) {
+  if (!input.files[0]) {
+    ibImgData[which] = null;
+    document.getElementById(which==='main' ? 'ib-preview' : 'ib-reply-preview').style.display = 'none';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const MAX = 128;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h*MAX/w); w = MAX; }
+      if (h > MAX) { w = Math.round(w*MAX/h); h = MAX; }
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+      const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, w, h);
+      const d = cx.getImageData(0, 0, w, h).data;
+      const rgb = new Uint8Array(w*h*3);
+      for (let i=0; i<w*h; i++) { rgb[i*3]=d[i*4]; rgb[i*3+1]=d[i*4+1]; rgb[i*3+2]=d[i*4+2]; }
+      ibImgData[which] = { rgb, w, h };
+      // Render original thumbnail
+      const origCv = document.getElementById(which==='main' ? 'ib-prev-orig' : 'ib-reply-prev-orig');
+      origCv.width=w; origCv.height=h; origCv.getContext('2d').drawImage(img, 0, 0, w, h);
+      origCv.style.width = Math.max(w*2,64)+'px'; origCv.style.height = Math.max(h*2,64)+'px';
+      updatePreview(which);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// Apply selected dithering algorithm and show preview
+function updatePreview(which) {
+  const d = ibImgData[which]; if (!d) return;
+  const algo = document.getElementById(which==='main' ? 'ib-dither-algo' : 'ib-reply-dither').value;
+  const idx = doDither(d.rgb, d.w, d.h, algo);
+  ibImgData[which].indexed = idx;
+  const cv = document.getElementById(which==='main' ? 'ib-prev-dith' : 'ib-reply-prev-dith');
+  renderIdx(cv, idx, d.w, d.h);
+  cv.style.width = Math.max(d.w*2,64)+'px'; cv.style.height = Math.max(d.h*2,64)+'px';
+  const info = document.getElementById(which==='main' ? 'ib-prev-info' : 'ib-reply-prev-info');
+  info.textContent = d.w+'x'+d.h+' | '+algo+' | 16 colors CGA';
+  document.getElementById(which==='main' ? 'ib-preview' : 'ib-reply-preview').style.display = 'block';
+}
+
+// Generate dithered BNET logo for Bitboard tab header
+function renderBnetLogo() {
+  const cv = document.createElement('canvas'); cv.width=140; cv.height=32;
+  const cx = cv.getContext('2d');
+  cx.fillStyle='#000'; cx.fillRect(0,0,140,32);
+  cx.font='bold 24px monospace'; cx.fillStyle='#FFD700'; cx.textBaseline='middle'; cx.fillText('BNET',6,14);
+  cx.font='10px monospace'; cx.fillStyle='#00aa00'; cx.fillText('bitboard',72,26);
+  const d = cx.getImageData(0,0,140,32).data;
+  const rgb = new Uint8Array(140*32*3);
+  for (let i=0; i<140*32; i++) { rgb[i*3]=d[i*4]; rgb[i*3+1]=d[i*4+1]; rgb[i*3+2]=d[i*4+2]; }
+  const idx = ditherFS(rgb, 140, 32);
+  renderIdx(document.getElementById('ib-logo'), idx, 140, 32, 3);
+}
 
 function switchBoard(board) {
   currentBoard = board;
   document.querySelectorAll('.board-tab').forEach(t => t.classList.toggle('active', t.textContent === board));
-  closeThread();
-  refreshBoard();
+  closeThread(); refreshBoard();
 }
 
 async function refreshBoard() {
@@ -1664,11 +1973,26 @@ async function refreshBoard() {
     return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px;cursor:pointer" onclick="openThread(\''+t.hash+'\')">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<div style="font-weight:700;color:var(--white)">'+(t.subject||'(no subject)')+'</div>' +
-      '<div style="font-size:10px;color:var(--dim)">'+t.replies+' replies</div></div>' +
+      '<div style="font-size:10px;color:var(--dim)">'+(t.hasimage?'[img] ':'')+t.replies+' replies</div></div>' +
       '<div style="margin-top:4px;font-size:12px;color:var(--text)">'+t.comment.substring(0,200)+(t.comment.length>200?'...':'')+'</div>' +
-      '<div style="margin-top:4px;font-size:10px;color:var(--dim)"><span style="color:var(--green)">'+t.tripcode+'</span> &middot; '+time+'</div>' +
-      '</div>';
+      '<div style="margin-top:4px;font-size:10px;color:var(--dim)"><span style="color:var(--green)">'+t.tripcode+'</span> &middot; '+time+'</div></div>';
   }).join('');
+}
+
+// Load and render an on-chain dithered image
+async function loadPostImage(hash, container) {
+  const r = await rpc('getpostimage', [hash]);
+  if (!r || !r.width) return;
+  const b = atob(r.pixels);
+  const idx = new Uint8Array(b.length);
+  for (let i=0; i<b.length; i++) idx[i] = b.charCodeAt(i);
+  const cv = document.createElement('canvas');
+  cv.style.imageRendering = 'pixelated';
+  cv.style.border = '1px solid var(--border)';
+  cv.style.marginTop = '8px'; cv.style.display = 'block';
+  renderIdx(cv, idx, r.width, r.height);
+  cv.style.width = Math.max(r.width*2, 64)+'px'; cv.style.height = Math.max(r.height*2, 64)+'px';
+  container.appendChild(cv);
 }
 
 async function openThread(hash) {
@@ -1682,16 +2006,20 @@ async function openThread(hash) {
   let html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px">';
   html += '<div style="font-weight:700;font-size:15px;color:var(--white)">'+(op.subject||'(no subject)')+'</div>';
   html += '<div style="font-size:10px;color:var(--dim);margin:4px 0"><span style="color:var(--green)">'+op.tripcode+'</span> &middot; '+opTime.toLocaleString()+'</div>';
+  if (op.hasimage) html += '<div class="post-img" data-hash="'+op.hash+'"></div>';
   html += '<div style="margin-top:8px;white-space:pre-wrap">'+op.comment+'</div></div>';
   if (thread.replies && thread.replies.length) {
     thread.replies.forEach((r, i) => {
       const rt = new Date(r.time * 1000);
       html += '<div style="background:var(--bg3);border-left:2px solid var(--border);padding:10px;margin:4px 0 4px 16px;border-radius:2px">';
       html += '<div style="font-size:10px;color:var(--dim)"><span style="color:var(--green)">'+r.tripcode+'</span> &middot; #'+(i+1)+' &middot; '+rt.toLocaleString()+'</div>';
+      if (r.hasimage) html += '<div class="post-img" data-hash="'+r.hash+'"></div>';
       html += '<div style="margin-top:4px;white-space:pre-wrap">'+r.comment+'</div></div>';
     });
   }
   document.getElementById('ib-thread-content').innerHTML = html;
+  // Load all on-chain images
+  document.querySelectorAll('.post-img').forEach(el => { loadPostImage(el.dataset.hash, el); });
 }
 
 function closeThread() {
@@ -1700,72 +2028,28 @@ function closeThread() {
   document.getElementById('ib-thread-view').style.display = 'none';
 }
 
-// Extract raw RGB pixels from an image file, resized to max 128px wide
-function extractImageRGB(file) {
-  return new Promise((resolve) => {
-    if (!file) { resolve(null); return; }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        const MAX = 128;
-        let w = img.width, h = img.height;
-        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const data = ctx.getImageData(0, 0, w, h).data;
-        // Extract RGB (skip alpha)
-        const rgb = new Uint8Array(w * h * 3);
-        for (let i = 0; i < w * h; i++) {
-          rgb[i*3] = data[i*4];
-          rgb[i*3+1] = data[i*4+1];
-          rgb[i*3+2] = data[i*4+2];
-        }
-        // Base64 encode
-        let b64 = '';
-        const bytes = new Uint8Array(rgb);
-        for (let i = 0; i < bytes.length; i++) b64 += String.fromCharCode(bytes[i]);
-        resolve({ b64: btoa(b64), w, h });
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 async function postThread() {
   const subj = document.getElementById('ib-subject').value;
   const comm = document.getElementById('ib-comment').value;
   const fileInput = document.getElementById('ib-image');
   if (!comm && !fileInput.files[0]) return;
   const status = document.getElementById('ib-post-status');
-  status.textContent = 'Processing...';
-  status.style.color = 'var(--dim)';
-
+  status.textContent = 'Processing...'; status.style.color = 'var(--dim)';
+  const d = ibImgData.main;
   let params = [currentBoard, subj, comm || ' ', ''];
-  const imgData = await extractImageRGB(fileInput.files[0]);
-  if (imgData) {
-    params.push(imgData.b64, String(imgData.w), String(imgData.h));
-    status.textContent = 'Posting with image ('+imgData.w+'x'+imgData.h+')...';
-  } else {
-    status.textContent = 'Posting...';
-  }
-
+  if (d && d.indexed) {
+    let b64 = ''; for (let i=0; i<d.indexed.length; i++) b64 += String.fromCharCode(d.indexed[i]);
+    params.push(btoa(b64), String(d.w), String(d.h), 'indexed');
+    status.textContent = 'Posting with dithered image ('+d.w+'x'+d.h+')...';
+  } else { status.textContent = 'Posting...'; }
   const r = await rpc('createpost', params);
   if (r) {
-    status.textContent = 'Posted! (on-chain tx broadcast)';
-    status.style.color = 'var(--green)';
-    document.getElementById('ib-subject').value = '';
-    document.getElementById('ib-comment').value = '';
-    fileInput.value = '';
+    status.textContent = 'Posted! (on-chain tx broadcast)'; status.style.color = 'var(--green)';
+    document.getElementById('ib-subject').value = ''; document.getElementById('ib-comment').value = '';
+    fileInput.value = ''; ibImgData.main = null;
+    document.getElementById('ib-preview').style.display = 'none';
     setTimeout(refreshBoard, 500);
-  } else {
-    status.textContent = 'Failed to post';
-    status.style.color = 'red';
-  }
+  } else { status.textContent = 'Failed to post'; status.style.color = 'red'; }
 }
 
 async function postReply() {
@@ -1775,22 +2059,19 @@ async function postReply() {
   if (!comm && !fileInput.files[0]) return;
   const status = document.getElementById('ib-reply-status');
   status.textContent = 'Posting reply...';
-
+  const d = ibImgData.reply;
   let params = [currentBoard, '', comm || ' ', currentThread];
-  const imgData = await extractImageRGB(fileInput.files[0]);
-  if (imgData) params.push(imgData.b64, String(imgData.w), String(imgData.h));
-
+  if (d && d.indexed) {
+    let b64 = ''; for (let i=0; i<d.indexed.length; i++) b64 += String.fromCharCode(d.indexed[i]);
+    params.push(btoa(b64), String(d.w), String(d.h), 'indexed');
+  }
   const r = await rpc('createpost', params);
   if (r) {
-    status.textContent = 'Reply posted!';
-    status.style.color = 'var(--green)';
-    document.getElementById('ib-reply').value = '';
-    fileInput.value = '';
+    status.textContent = 'Reply posted!'; status.style.color = 'var(--green)';
+    document.getElementById('ib-reply').value = ''; fileInput.value = '';
+    ibImgData.reply = null; document.getElementById('ib-reply-preview').style.display = 'none';
     setTimeout(() => openThread(currentThread), 500);
-  } else {
-    status.textContent = 'Failed';
-    status.style.color = 'red';
-  }
+  } else { status.textContent = 'Failed'; status.style.color = 'red'; }
 }
 
 // News
@@ -1835,10 +2116,9 @@ async function refreshMarket() {
 async function refreshPeers() {
   const peers = await rpc('listpeers');
   const tbody = document.getElementById('peers-list');
-  if (!peers || !peers.length) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--dim)">No peers connected</td></tr>'; return; }
+  if (!peers || !peers.length) { tbody.innerHTML = '<tr><td colspan="3" style="color:var(--dim)">No peers connected</td></tr>'; return; }
   tbody.innerHTML = peers.map(p =>
-    '<tr><td>'+p.addr+'</td><td>'+(p.inbound?'inbound':'outbound')+'</td><td>'+p.version+'</td>' +
-    '<td>'+(p.bytessent/1024).toFixed(1)+' KB</td><td>'+(p.bytesrecv/1024).toFixed(1)+' KB</td></tr>'
+    '<tr><td>'+p.addr+'</td><td>'+(p.inbound?'inbound':'outbound')+'</td><td>'+p.version+'</td></tr>'
   ).join('');
 }
 
@@ -1963,6 +2243,7 @@ function formatHashrate(h) {
 renderChessBoard();
 refreshDashboard();
 newAddr();
+renderBnetLogo();
 setInterval(refreshDashboard, 5000);
 )JS";
 
@@ -2255,6 +2536,14 @@ void ThreadRPCServer(void* parg)
                 else if (strMethod == "createpost")
                 {
                     string strResult = HandleCreatePost(strParams);
+                    if (strResult.find("\"error\"") != string::npos)
+                        strResponse = strResult;
+                    else
+                        strResponse = JSONResult(strResult, strId);
+                }
+                else if (strMethod == "getpostimage")
+                {
+                    string strResult = HandleGetPostImage(strParams);
                     if (strResult.find("\"error\"") != string::npos)
                         strResponse = strResult;
                     else
