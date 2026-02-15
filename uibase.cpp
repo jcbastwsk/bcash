@@ -10,6 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "uibase.h"
+#include "darktheme.h"
 #include <wx/artprov.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -17,10 +18,10 @@
 CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
+    this->SetBackgroundColour(DARK_BG);
 
     m_menubar = new wxMenuBar(0);
-    m_menubar->SetBackgroundColour(wxColour(240, 240, 240));
+    m_menubar->SetBackgroundColour(DARK_BG_SECONDARY);
 
     m_menuFile = new wxMenu();
     wxMenuItem* m_menuFileExit;
@@ -66,7 +67,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_toolBar->Realize();
 
     m_statusBar = this->CreateStatusBar(1, wxST_SIZEGRIP, wxID_ANY);
-    m_statusBar->SetBackgroundColour(wxColour(240, 240, 240));
+    m_statusBar->SetBackgroundColour(DARK_BG_SECONDARY);
 
     wxBoxSizer* bSizer2;
     bSizer2 = new wxBoxSizer(wxVERTICAL);
@@ -82,7 +83,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     bSizer85->Add(m_staticText32, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5);
 
     m_textCtrlAddress = new wxTextCtrl(this, wxID_TEXTCTRLADDRESS, wxEmptyString, wxDefaultPosition, wxSize(250,-1), wxTE_READONLY);
-    m_textCtrlAddress->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+    m_textCtrlAddress->SetBackgroundColour(DARK_BG_SECONDARY);
 
     bSizer85->Add(m_textCtrlAddress, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
@@ -111,7 +112,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_staticTextBalance = new wxStaticText(m_panel14, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(120,15), wxALIGN_RIGHT|wxST_NO_AUTORESIZE);
     m_staticTextBalance->Wrap(-1);
     m_staticTextBalance->SetFont(wxFont(8, 70, 90, 90, false, wxEmptyString));
-    m_staticTextBalance->SetBackgroundColour(wxColour(240, 240, 240));
+    m_staticTextBalance->SetBackgroundColour(DARK_BG_SECONDARY);
 
     bSizer66->Add(m_staticTextBalance, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
 
@@ -289,6 +290,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     m_listCtrlOrdersSent->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED, wxListEventHandler(CMainFrameBase::OnListItemActivatedOrdersSent), NULL, this);
     m_listCtrlProductsSent->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED, wxListEventHandler(CMainFrameBase::OnListItemActivatedProductsSent), NULL, this);
     m_listCtrlOrdersReceived->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED, wxListEventHandler(CMainFrameBase::OnListItemActivatedOrdersReceived), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CMainFrameBase::~CMainFrameBase()
@@ -369,6 +371,7 @@ CTxDetailsDialogBase::CTxDetailsDialogBase(wxWindow* parent, wxWindowID id, cons
 
     // Connect Events
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CTxDetailsDialogBase::OnButtonOK), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CTxDetailsDialogBase::~CTxDetailsDialogBase()
@@ -428,6 +431,7 @@ COptionsDialogBase::COptionsDialogBase(wxWindow* parent, wxWindowID id, const wx
     m_textCtrlTransactionFee->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(COptionsDialogBase::OnKillFocusTransactionFee), NULL, this);
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(COptionsDialogBase::OnButtonOK), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(COptionsDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 COptionsDialogBase::~COptionsDialogBase()
@@ -504,6 +508,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
 
     // Connect Events
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CAboutDialogBase::OnButtonOK), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CAboutDialogBase::~CAboutDialogBase()
@@ -654,6 +659,7 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
     m_textCtrlMessage->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(CSendDialogBase::OnKeyDown), NULL, this);
     m_buttonSend->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CSendDialogBase::OnButtonSend), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CSendDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CSendDialogBase::~CSendDialogBase()
@@ -683,7 +689,7 @@ CSendingDialogBase::CSendingDialogBase(wxWindow* parent, wxWindowID id, const wx
     bSizer68->Add(m_staticTextSending, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 8);
 
     m_textCtrlStatus = new wxTextCtrl(this, wxID_ANY, wxT("\n\nConnecting..."), wxDefaultPosition, wxDefaultSize, wxTE_CENTRE|wxTE_MULTILINE|wxTE_NO_VSCROLL|wxTE_READONLY|wxNO_BORDER);
-    m_textCtrlStatus->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
+    m_textCtrlStatus->SetBackgroundColour(DARK_BG);
 
     bSizer68->Add(m_textCtrlStatus, 1, wxEXPAND|wxRIGHT|wxLEFT, 10);
 
@@ -714,6 +720,7 @@ CSendingDialogBase::CSendingDialogBase(wxWindow* parent, wxWindowID id, const wx
     this->Connect(wxEVT_PAINT, wxPaintEventHandler(CSendingDialogBase::OnPaint));
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CSendingDialogBase::OnButtonOK), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CSendingDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CSendingDialogBase::~CSendingDialogBase()
@@ -788,6 +795,7 @@ CYourAddressDialogBase::CYourAddressDialogBase(wxWindow* parent, wxWindowID id, 
     m_buttonCopy->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CYourAddressDialogBase::OnButtonCopy), NULL, this);
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CYourAddressDialogBase::OnButtonOK), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CYourAddressDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CYourAddressDialogBase::~CYourAddressDialogBase()
@@ -869,6 +877,7 @@ CAddressBookDialogBase::CAddressBookDialogBase(wxWindow* parent, wxWindowID id, 
     m_buttonDelete->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CAddressBookDialogBase::OnButtonDelete), NULL, this);
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CAddressBookDialogBase::OnButtonOK), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CAddressBookDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CAddressBookDialogBase::~CAddressBookDialogBase()
@@ -918,6 +927,7 @@ CProductsDialogBase::CProductsDialogBase(wxWindow* parent, wxWindowID id, const 
     m_textCtrlSearch->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(CProductsDialogBase::OnKeyDown), NULL, this);
     m_buttonSearch->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CProductsDialogBase::OnButtonSearch), NULL, this);
     m_listCtrl->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED, wxListEventHandler(CProductsDialogBase::OnListItemActivated), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CProductsDialogBase::~CProductsDialogBase()
@@ -932,14 +942,14 @@ CProductsDialogBase::~CProductsDialogBase()
 CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+    this->SetBackgroundColour(DARK_BG_SECONDARY);
 
     wxBoxSizer* bSizer20;
     bSizer20 = new wxBoxSizer(wxVERTICAL);
 
     m_scrolledWindow = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxTAB_TRAVERSAL|wxVSCROLL);
     m_scrolledWindow->SetScrollRate(5, 5);
-    m_scrolledWindow->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    m_scrolledWindow->SetBackgroundColour(DARK_BG_INPUT);
 
     wxBoxSizer* bSizer21;
     bSizer21 = new wxBoxSizer(wxVERTICAL);
@@ -1338,6 +1348,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CEditProductDialogBase::OnButtonSend), NULL, this);
     m_buttonPreview->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CEditProductDialogBase::OnButtonPreview), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CEditProductDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CEditProductDialogBase::~CEditProductDialogBase()
@@ -1416,7 +1427,7 @@ CEditProductDialogBase::~CEditProductDialogBase()
 CViewProductDialogBase::CViewProductDialogBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+    this->SetBackgroundColour(DARK_BG_SECONDARY);
 
     wxBoxSizer* bSizer20;
     bSizer20 = new wxBoxSizer(wxVERTICAL);
@@ -1431,7 +1442,7 @@ CViewProductDialogBase::CViewProductDialogBase(wxWindow* parent, wxWindowID id, 
 
     m_scrolledWindow = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxTAB_TRAVERSAL|wxVSCROLL);
     m_scrolledWindow->SetScrollRate(5, 5);
-    m_scrolledWindow->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    m_scrolledWindow->SetBackgroundColour(DARK_BG_INPUT);
 
     wxBoxSizer* bSizer21;
     bSizer21 = new wxBoxSizer(wxVERTICAL);
@@ -1491,6 +1502,7 @@ CViewProductDialogBase::CViewProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_buttonBack->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CViewProductDialogBase::OnButtonBack), NULL, this);
     m_buttonNext->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CViewProductDialogBase::OnButtonNext), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CViewProductDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CViewProductDialogBase::~CViewProductDialogBase()
@@ -1506,7 +1518,7 @@ CViewProductDialogBase::~CViewProductDialogBase()
 CViewOrderDialogBase::CViewOrderDialogBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+    this->SetBackgroundColour(DARK_BG_SECONDARY);
 
     wxBoxSizer* bSizer20;
     bSizer20 = new wxBoxSizer(wxVERTICAL);
@@ -1534,6 +1546,7 @@ CViewOrderDialogBase::CViewOrderDialogBase(wxWindow* parent, wxWindowID id, cons
 
     // Connect Events
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CViewOrderDialogBase::OnButtonOK), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CViewOrderDialogBase::~CViewOrderDialogBase()
@@ -1545,7 +1558,7 @@ CViewOrderDialogBase::~CViewOrderDialogBase()
 CEditReviewDialogBase::CEditReviewDialogBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
+    this->SetBackgroundColour(DARK_BG_SECONDARY);
 
     wxBoxSizer* bSizer112;
     bSizer112 = new wxBoxSizer(wxVERTICAL);
@@ -1599,6 +1612,7 @@ CEditReviewDialogBase::CEditReviewDialogBase(wxWindow* parent, wxWindowID id, co
     m_textCtrlReview->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(CEditReviewDialogBase::OnKeyDown), NULL, this);
     m_buttonSubmit->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CEditReviewDialogBase::OnButtonSubmit), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CEditReviewDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CEditReviewDialogBase::~CEditReviewDialogBase()
@@ -1612,7 +1626,7 @@ CEditReviewDialogBase::~CEditReviewDialogBase()
 CPokerLobbyDialogBase::CPokerLobbyDialogBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
-    this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
+    this->SetBackgroundColour(DARK_BG);
 
     wxBoxSizer* bSizer156;
     bSizer156 = new wxBoxSizer(wxHORIZONTAL);
@@ -1641,6 +1655,7 @@ CPokerLobbyDialogBase::CPokerLobbyDialogBase(wxWindow* parent, wxWindowID id, co
     m_listCtrl->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED, wxListEventHandler(CPokerLobbyDialogBase::OnListItemActivated), NULL, this);
     m_listCtrl->Connect(wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler(CPokerLobbyDialogBase::OnListItemSelected), NULL, this);
     m_buttonNewTable->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPokerLobbyDialogBase::OnButtonNewTable), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CPokerLobbyDialogBase::~CPokerLobbyDialogBase()
@@ -1734,6 +1749,7 @@ CPokerDialogBase::CPokerDialogBase(wxWindow* parent, wxWindowID id, const wxStri
     m_checkPreCallAny->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(CPokerDialogBase::OnCheckPreCallAny), NULL, this);
     m_checkPreRaise->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(CPokerDialogBase::OnCheckPreRaise), NULL, this);
     m_checkPreRaiseAny->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(CPokerDialogBase::OnCheckPreRaiseAny), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CPokerDialogBase::~CPokerDialogBase()
@@ -1832,6 +1848,7 @@ CGetTextFromUserDialogBase::CGetTextFromUserDialogBase(wxWindow* parent, wxWindo
     m_textCtrl2->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(CGetTextFromUserDialogBase::OnKeyDown), NULL, this);
     m_buttonOK->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CGetTextFromUserDialogBase::OnButtonOK), NULL, this);
     m_buttonCancel->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CGetTextFromUserDialogBase::OnButtonCancel), NULL, this);
+    ApplyDarkTheme(this);
 }
 
 CGetTextFromUserDialogBase::~CGetTextFromUserDialogBase()

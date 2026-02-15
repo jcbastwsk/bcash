@@ -3,7 +3,14 @@
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
 #include "headers.h"
+#include "darktheme.h"
 #include "bgold.h"
+#include "cluster.h"
+#include "rpc.h"
+
+#ifdef __WXOSX__
+extern "C" void OSXActivateApp();
+#endif
 
 
 
@@ -354,6 +361,9 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     RefreshNewsTab();
     RefreshMarketTab();
     RefreshBgoldTab();
+
+    // Apply dark theme
+    ApplyDarkThemeToFrame(this);
 }
 
 CMainFrame::~CMainFrame()
@@ -842,9 +852,14 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
     // Update status bar
     string strGen = "";
     if (fGenerateBcash)
-        strGen = "    Generating";
-    if (fGenerateBcash && vNodes.empty())
-        strGen = "(not connected)";
+    {
+        if (dLocalHashrate > 0)
+            strGen = strprintf("    Mining %.1f MH/s (%d threads)", dLocalHashrate / 1e6, nMiningThreads);
+        else
+            strGen = "    Generating";
+        if (vNodes.empty())
+            strGen += "  [no peers]";
+    }
     m_statusBar->SetStatusText(strGen, 1);
 
     string strStatus = strprintf("     %d peers     %d blocks     %d txns", vNodes.size(), nBestHeight + 1, m_listCtrl->GetItemCount());
@@ -862,6 +877,9 @@ void CMainFrame::OnPaintListCtrl(wxPaintEvent& event)
         RefreshNewsTab();
         RefreshMarketTab();
         RefreshBgoldTab();
+
+    // Apply dark theme
+    ApplyDarkThemeToFrame(this);
     }
 
     event.Skip();
@@ -911,8 +929,7 @@ void CMainFrame::OnMenuOptionsGenerate(wxCommandEvent& event)
     CWalletDB().WriteSetting("fGenerateBcash", fGenerateBcash);
 
     if (fGenerateBcash)
-        if (_beginthread(ThreadBcashMiner, 0, NULL) == -1)
-            printf("Error: _beginthread(ThreadBcashMiner) failed\n");
+        StartMultiMiner();
 
     Refresh();
     Update();
@@ -1082,6 +1099,20 @@ CTxDetailsDialog::CTxDetailsDialog(wxWindow* parent, CWalletTx wtx) : CTxDetails
     if (wtx.IsCoinBase())
     {
         strHTML += "<b>Source:</b> Generated<br>";
+        // Show the address it was mined to
+        foreach(const CTxOut& txout, wtx.vout)
+        {
+            if (txout.nValue > 0)
+            {
+                uint160 hash160;
+                if (ExtractHash160(txout.scriptPubKey, hash160))
+                {
+                    string strAddress = Hash160ToAddress(hash160);
+                    strHTML += "<b>Mined to:</b> " + HtmlEscape(strAddress) + "<br>";
+                }
+                break;
+            }
+        }
     }
     else if (!wtx.mapValue["from"].empty())
     {
@@ -2971,6 +3002,11 @@ map<string, string> ParseParameters(int argc, char* argv[])
 
 bool CMyApp::OnInit2()
 {
+#ifdef __WXOSX__
+    // macOS Cocoa: must set activation policy before creating any windows
+    OSXActivateApp();
+#endif
+
     //// debug print
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     printf("bcash CMyApp::OnInit()\n");
@@ -3128,6 +3164,9 @@ bool CMyApp::OnInit2()
             fGenerateBcash = atoi(mapArgs["/gen"].c_str());
     }
 
+    // Default to solo mining — no peer network required
+    fSoloMine = true;
+
     //
     // Create the main frame window
     //
@@ -3136,13 +3175,23 @@ bool CMyApp::OnInit2()
     {
         pframeMain = new CMainFrame(NULL);
         pframeMain->Show();
+        pframeMain->Raise();
+        pframeMain->SetFocus();
+        wxYield();
 
         if (!StartNode(strErrors))
             wxMessageBox(strErrors);
 
+        // Start RPC server for web UI
+        {
+            pthread_t rpcThread;
+            if (pthread_create(&rpcThread, NULL,
+                [](void* p) -> void* { ThreadRPCServer(p); return NULL; }, NULL) != 0)
+                printf("Error: failed to start RPC server thread\n");
+        }
+
         if (fGenerateBcash)
-            if (_beginthread(ThreadBcashMiner, 0, NULL) == -1)
-                printf("Error: _beginthread(ThreadBcashMiner) failed\n");
+            StartMultiMiner();
 
         //
         // Tests
@@ -3295,6 +3344,7 @@ CPeersDialog::CPeersDialog(wxWindow* parent) : wxDialog(parent, wxID_ANY, wxT("C
     m_buttonRefresh->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonRefresh), NULL, this);
     buttonClose->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(CPeersDialog::OnButtonClose), NULL, this);
 
+    ApplyDarkThemeToDialog(this);
     RefreshPeerList();
 }
 
@@ -3326,6 +3376,7 @@ void CPeersDialog::OnButtonAddPeer(wxCommandEvent& event)
     CAddress addr(strAddress.c_str());
     ConnectNode(addr);
     Sleep(500);
+    ApplyDarkThemeToDialog(this);
     RefreshPeerList();
 }
 
@@ -3348,11 +3399,13 @@ void CPeersDialog::OnButtonDisconnect(wxCommandEvent& event)
         }
     }
     Sleep(500);
+    ApplyDarkThemeToDialog(this);
     RefreshPeerList();
 }
 
 void CPeersDialog::OnButtonRefresh(wxCommandEvent& event)
 {
+    ApplyDarkThemeToDialog(this);
     RefreshPeerList();
 }
 
