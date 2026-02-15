@@ -42,14 +42,9 @@ void SHA256_Transform_ARM(uint32_t *state, const uint32_t *data)
     //   STATE1 = { s[2], s[3], s[6], s[7] }  (C, D, G, H)
 
     // Load current hash state
-    uint32x4_t ABCD = vld1q_u32(&state[0]);
-    uint32x4_t EFGH = vld1q_u32(&state[4]);
-
-    // Rearrange into the layout the SHA instructions expect
-    // ABCD = [A B C D], EFGH = [E F G H]
-    // We need STATE0 = [A B E F], STATE1 = [C D G H]
-    uint32x4_t STATE0 = vcombine_u32(vget_low_u32(ABCD), vget_low_u32(EFGH));
-    uint32x4_t STATE1 = vcombine_u32(vget_high_u32(ABCD), vget_high_u32(EFGH));
+    // ARM SHA-256 intrinsics expect STATE0=[A,B,C,D] STATE1=[E,F,G,H]
+    uint32x4_t STATE0 = vld1q_u32(&state[0]);
+    uint32x4_t STATE1 = vld1q_u32(&state[4]);
 
     // Save for final addition
     uint32x4_t ABEF_SAVE = STATE0;
@@ -187,12 +182,9 @@ void SHA256_Transform_ARM(uint32_t *state, const uint32_t *data)
     STATE0 = vaddq_u32(STATE0, ABEF_SAVE);
     STATE1 = vaddq_u32(STATE1, CDGH_SAVE);
 
-    // Rearrange back: STATE0=[A,B,E,F] STATE1=[C,D,G,H] -> [A,B,C,D] [E,F,G,H]
-    ABCD = vcombine_u32(vget_low_u32(STATE0), vget_low_u32(STATE1));
-    EFGH = vcombine_u32(vget_high_u32(STATE0), vget_high_u32(STATE1));
-
-    vst1q_u32(&state[0], ABCD);
-    vst1q_u32(&state[4], EFGH);
+    // Store back: STATE0=[A,B,C,D] STATE1=[E,F,G,H]
+    vst1q_u32(&state[0], STATE0);
+    vst1q_u32(&state[4], STATE1);
 }
 
 #endif // __aarch64__ && __ARM_FEATURE_SHA2

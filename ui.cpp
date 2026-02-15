@@ -291,7 +291,7 @@ CMainFrame::CMainFrame(wxWindow* parent) : CMainFrameBase(parent)
     m_staticTextBalance->SetLabel(FormatMoney(GetBalance()) + "  ");
     m_listCtrl->SetFocus();
     SetIcon(wxNullIcon);
-    m_menuOptions->Check(wxID_OPTIONSGENERATEBCASH, fGenerateBcash);
+    m_menuOptions->Check(wxID_OPTIONSGENERATEBC, fGenerateBcash);
 
     // Init toolbar with placeholder bitmaps (no resource bitmaps on UNIX)
     m_toolBar->ClearTools();
@@ -382,7 +382,7 @@ void Shutdown(void* parg)
         StopNode();
         DBFlush(true);
 
-        printf("bcash exiting\n");
+        printf("bnet exiting\n");
         exit(0);
     }
 }
@@ -1860,7 +1860,7 @@ CYourAddressDialog::CYourAddressDialog(wxWindow* parent, const string& strInitSe
 {
     // Init column headers
     m_listCtrl->InsertColumn(0, "Name", wxLIST_FORMAT_LEFT, 200);
-    m_listCtrl->InsertColumn(1, "bcash Address", wxLIST_FORMAT_LEFT, 350);
+    m_listCtrl->InsertColumn(1, "BC Address", wxLIST_FORMAT_LEFT, 350);
     m_listCtrl->SetFocus();
 
     // Fill listctrl with address book data
@@ -1918,7 +1918,7 @@ void CYourAddressDialog::OnButtonRename(wxCommandEvent& event)
         return;
     string strName = (string)m_listCtrl->GetItemText(nIndex);
     string strAddress = (string)GetItemText(m_listCtrl, nIndex, 1);
-    CGetTextFromUserDialog dialog(this, "Rename bcash Address", "New Name", strName);
+    CGetTextFromUserDialog dialog(this, "Rename BC Address", "New Name", strName);
     if (!dialog.ShowModal())
         return;
     strName = dialog.GetValue();
@@ -1932,7 +1932,7 @@ void CYourAddressDialog::OnButtonRename(wxCommandEvent& event)
 void CYourAddressDialog::OnButtonNew(wxCommandEvent& event)
 {
     // Ask name
-    CGetTextFromUserDialog dialog(this, "New bcash Address", "Name", "");
+    CGetTextFromUserDialog dialog(this, "New BC Address", "Name", "");
     if (!dialog.ShowModal())
         return;
     string strName = dialog.GetValue();
@@ -3009,7 +3009,7 @@ bool CMyApp::OnInit2()
 
     //// debug print
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("bcash CMyApp::OnInit()\n");
+    printf("bnet CMyApp::OnInit()\n");
 
     //
     // Limit to single instance per user
@@ -3017,7 +3017,7 @@ bool CMyApp::OnInit2()
     //
     const char* pszHome = getenv("HOME");
     if (!pszHome) pszHome = "/tmp";
-    wxString strMutexName = wxString("bcash.") + pszHome;
+    wxString strMutexName = wxString("bnet.") + pszHome;
     for (size_t i = 0; i < strMutexName.size(); i++)
         if (!isalnum(strMutexName[i]))
             strMutexName[i] = '.';
@@ -3078,7 +3078,7 @@ bool CMyApp::OnInit2()
         wxSTAY_ON_TOP | wxFRAME_NO_TASKBAR | wxBORDER_SIMPLE);
     pSplash->SetBackgroundColour(wxColour(255, 255, 255));
     wxBoxSizer* pSizer = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* pSplashTitle = new wxStaticText(pSplash, wxID_ANY, "bcash",
+    wxStaticText* pSplashTitle = new wxStaticText(pSplash, wxID_ANY, "bnet",
         wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
     pSplashTitle->SetFont(wxFont(16, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
     wxStaticText* pSplashStatus = new wxStaticText(pSplash, wxID_ANY, "Starting...",
@@ -3324,10 +3324,10 @@ CPeersDialog::CPeersDialog(wxWindow* parent) : wxDialog(parent, wxID_ANY, wxT("C
     bSizer->Add(m_listCtrl, 1, wxEXPAND|wxALL, 5);
 
     wxBoxSizer* bSizerButtons = new wxBoxSizer(wxHORIZONTAL);
-    m_buttonAddPeer = new wxButton(this, wxID_ANY, wxT("&Add Peer..."));
-    m_buttonDisconnect = new wxButton(this, wxID_ANY, wxT("&Disconnect"));
-    m_buttonRefresh = new wxButton(this, wxID_ANY, wxT("&Refresh"));
-    wxButton* buttonClose = new wxButton(this, wxID_CANCEL, wxT("Close"));
+    m_buttonAddPeer = new DarkButton(this, wxID_ANY, wxT("&Add Peer..."));
+    m_buttonDisconnect = new DarkButton(this, wxID_ANY, wxT("&Disconnect"));
+    m_buttonRefresh = new DarkButton(this, wxID_ANY, wxT("&Refresh"));
+    DarkButton* buttonClose = new DarkButton(this, wxID_CANCEL, wxT("Close"));
 
     bSizerButtons->Add(m_buttonAddPeer, 0, wxALL, 5);
     bSizerButtons->Add(m_buttonDisconnect, 0, wxALL, 5);

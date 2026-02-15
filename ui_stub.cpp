@@ -7,6 +7,7 @@
 #include "headers.h"
 #include "sha.h"
 #include "rpc.h"
+#include "cluster.h"
 
 // Stubs for GUI functions and data referenced by other code
 void MainFrameRepaint() {}
@@ -16,7 +17,7 @@ map<string, string> mapAddressBook;
 bool fSoloMine = false;
 
 // Shutdown handling
-extern bool fShutdown;
+// fShutdown declared in net.h as std::atomic<bool>
 static volatile bool fRequestShutdown = false;
 
 void HandleSignal(int sig)
@@ -28,7 +29,7 @@ void HandleSignal(int sig)
 
 int main(int argc, char* argv[])
 {
-    printf("bcash v0.1.0 - headless node\n");
+    printf("bnet v0.2.0 - headless node\n");
     printf("Based on Bitcoin 0.01 by Satoshi Nakamoto. bnet/bcash/bgold by Jacob Sitowski.\n\n");
 
     // Set up signal handlers
@@ -55,7 +56,7 @@ int main(int argc, char* argv[])
             fSoloMine = true;
         else if (arg == "-help" || arg == "-h")
         {
-            printf("Usage: bcash [options]\n");
+            printf("Usage: bnet [options]\n");
             printf("Options:\n");
             printf("  -nogenerate     Don't mine blocks\n");
             printf("  -solo           Mine without peers (solo/bootstrap mode)\n");
@@ -90,7 +91,7 @@ int main(int argc, char* argv[])
     }
 
     // Print balance
-    printf("Balance: %s BCASH\n", FormatMoney(GetBalance()).c_str());
+    printf("Balance: %s BC\n", FormatMoney(GetBalance()).c_str());
     printf("Block height: %d\n", nBestHeight);
 
     // Start node
@@ -112,22 +113,17 @@ int main(int argc, char* argv[])
             pthread_detach(thrRPC);
     }
 
-    // Start miner thread
+    // Start multi-threaded miner
     if (fGenerateBcash)
     {
         if (fSoloMine)
             printf("Starting miner in SOLO mode (no peers required)...\n");
         else
             printf("Starting miner...\n");
-        pthread_t thrMiner;
-        if (pthread_create(&thrMiner, NULL,
-            [](void* p) -> void* { ThreadBcashMiner(p); return NULL; }, NULL) != 0)
-            printf("Warning: Failed to start miner\n");
-        else
-            pthread_detach(thrMiner);
+        StartMultiMiner();
     }
 
-    printf("\nbcash node running. Press Ctrl+C to stop.\n");
+    printf("\nbnet node running. Press Ctrl+C to stop.\n");
     printf("RPC server on 127.0.0.1:9332\n\n");
 
     // Block until shutdown
@@ -151,6 +147,6 @@ int main(int argc, char* argv[])
     printf("Shutting down...\n");
     StopNode();
     DBFlush(true);
-    printf("bcash stopped.\n");
+    printf("bnet stopped.\n");
     return 0;
 }

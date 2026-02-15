@@ -217,8 +217,8 @@ void ThreadIRCSeed(void* parg)
         }
         Sleep(500);
 
-        Send(hSocket, "JOIN #bcash\r");
-        Send(hSocket, "WHO #bcash\r");
+        Send(hSocket, "JOIN #bnet\r");
+        Send(hSocket, "WHO #bnet\r");
 
         while (!fRestartIRCSeed)
         {

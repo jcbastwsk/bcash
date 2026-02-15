@@ -2,8 +2,8 @@
 // Cluster mining via mDNS (Bonjour) — automatic LAN peer discovery
 // and nonce range distribution for Apple Silicon clusters.
 
-#ifndef BCASH_CLUSTER_H
-#define BCASH_CLUSTER_H
+#ifndef BNET_CLUSTER_H
+#define BNET_CLUSTER_H
 
 #include <string>
 #include <vector>
@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 // Service type for mDNS advertisement/discovery
-#define BCASH_MDNS_SERVICE_TYPE "_bcash._tcp"
+#define BCASH_MDNS_SERVICE_TYPE "_bnet._tcp"
 
 // Cluster peer info (discovered via mDNS TXT record)
 struct ClusterPeer
@@ -57,4 +57,4 @@ NonceRange GetThreadNonceRange(NonceRange nodeRange, int nThread, int nTotalThre
 // Multi-threaded mining entry point
 void StartMultiMiner();
 
-#endif // BCASH_CLUSTER_H
+#endif // BNET_CLUSTER_H

@@ -299,7 +299,7 @@ public:
     enum { FIELDS_MAX = 20 };
     wxTextCtrl* m_textCtrlLabel[FIELDS_MAX];
     wxTextCtrl* m_textCtrlField[FIELDS_MAX];
-    wxButton*   m_buttonDel[FIELDS_MAX];
+    DarkButton*   m_buttonDel[FIELDS_MAX];
 
     void LayoutAll();
     void ShowLine(int i, bool fShow=true);
@@ -436,9 +436,9 @@ public:
     CPeersDialog(wxWindow* parent);
 
     wxListCtrl* m_listCtrl;
-    wxButton* m_buttonAddPeer;
-    wxButton* m_buttonDisconnect;
-    wxButton* m_buttonRefresh;
+    DarkButton* m_buttonAddPeer;
+    DarkButton* m_buttonDisconnect;
+    DarkButton* m_buttonRefresh;
 
     void RefreshPeerList();
 };

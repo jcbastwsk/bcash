@@ -39,7 +39,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
 
     m_menuOptions = new wxMenu();
     wxMenuItem* m_menuOptionsGenerateBcash;
-    m_menuOptionsGenerateBcash = new wxMenuItem(m_menuOptions, wxID_OPTIONSGENERATEBCASH, wxString(wxT("&Generate Coins")) , wxEmptyString, wxITEM_CHECK);
+    m_menuOptionsGenerateBcash = new wxMenuItem(m_menuOptions, wxID_OPTIONSGENERATEBC, wxString(wxT("&Generate Coins")) , wxEmptyString, wxITEM_CHECK);
     m_menuOptions->Append(m_menuOptionsGenerateBcash);
 
     wxMenuItem* m_menuOptionsOptions;
@@ -78,7 +78,7 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
     wxBoxSizer* bSizer85;
     bSizer85 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your bcash Address:"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText32 = new wxStaticText(this, wxID_ANY, wxT("Your BC Address:"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText32->Wrap(-1);
     bSizer85->Add(m_staticText32, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5);
 
@@ -87,10 +87,10 @@ CMainFrameBase::CMainFrameBase(wxWindow* parent, wxWindowID id, const wxString& 
 
     bSizer85->Add(m_textCtrlAddress, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
-    m_buttonCopy = new wxButton(this, wxID_BUTTONCOPY, wxT("&Copy to Clipboard"), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+    m_buttonCopy = new DarkButton(this, wxID_BUTTONCOPY, wxT("&Copy to Clipboard"), wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
     bSizer85->Add(m_buttonCopy, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5);
 
-    m_button91 = new wxButton(this, wxID_BUTTONCHANGE, wxT("C&hange..."), wxDefaultPosition, wxDefaultSize, 0);
+    m_button91 = new DarkButton(this, wxID_BUTTONCHANGE, wxT("C&hange..."), wxDefaultPosition, wxDefaultSize, 0);
     bSizer85->Add(m_button91, 0, wxRIGHT, 5);
 
 
@@ -361,7 +361,7 @@ CTxDetailsDialogBase::CTxDetailsDialogBase(wxWindow* parent, wxWindowID id, cons
     wxBoxSizer* bSizer65;
     bSizer65 = new wxBoxSizer(wxVERTICAL);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
     bSizer65->Add(m_buttonOK, 0, wxALL, 5);
 
     bSizer64->Add(bSizer65, 0, wxALIGN_RIGHT, 5);
@@ -414,10 +414,10 @@ COptionsDialogBase::COptionsDialogBase(wxWindow* parent, wxWindowID id, const wx
     wxBoxSizer* bSizer58;
     bSizer58 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
     bSizer58->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer58->Add(m_buttonCancel, 0, wxALL, 5);
@@ -464,7 +464,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
     wxBoxSizer* bSizer64;
     bSizer64 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("bcash "), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText40 = new wxStaticText(this, wxID_ANY, wxT("bnet "), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText40->Wrap(-1);
     m_staticText40->SetFont(wxFont(10, 74, 90, 92, false, wxT("Tahoma")));
 
@@ -498,7 +498,7 @@ CAboutDialogBase::CAboutDialogBase(wxWindow* parent, wxWindowID id, const wxStri
 
     bSizer61->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(85,25), 0);
     bSizer61->Add(m_buttonOK, 0, wxALL, 5);
 
     bSizer60->Add(bSizer61, 0, wxEXPAND, 5);
@@ -536,7 +536,7 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
 
     fgSizer1->Add(0, 0, 0, wxEXPAND, 5);
 
-    m_staticText14 = new wxStaticText(this, wxID_ANY, wxT("Enter the recipient's IP address (e.g. 123.45.6.7) for online transfer with comments and confirmation, \nor bcash address (e.g. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJED9L) if recipient is not online."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText14 = new wxStaticText(this, wxID_ANY, wxT("Enter the recipient's IP address (e.g. 123.45.6.7) for online transfer with comments and confirmation, \nor BC address (e.g. 1NS17iag9jJgTHD1VXjvLCEnZuQ3rJED9L) if recipient is not online."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText14->Wrap(-1);
     fgSizer1->Add(m_staticText14, 0, wxTOP|wxRIGHT|wxLEFT, 5);
 
@@ -562,10 +562,10 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
     m_textCtrlAddress = new wxTextCtrl(this, wxID_TEXTCTRLPAYTO, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     bSizer19->Add(m_textCtrlAddress, 1, wxALIGN_CENTER_VERTICAL|wxALL, 5);
 
-    m_buttonPaste = new wxButton(this, wxID_BUTTONPASTE, wxT("&Paste"), wxDefaultPosition, wxSize(-1,-1), wxBU_EXACTFIT);
+    m_buttonPaste = new DarkButton(this, wxID_BUTTONPASTE, wxT("&Paste"), wxDefaultPosition, wxSize(-1,-1), wxBU_EXACTFIT);
     bSizer19->Add(m_buttonPaste, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5);
 
-    m_buttonAddress = new wxButton(this, wxID_BUTTONADDRESSBOOK, wxT(" Address &Book..."), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonAddress = new DarkButton(this, wxID_BUTTONADDRESSBOOK, wxT(" Address &Book..."), wxDefaultPosition, wxDefaultSize, 0);
     bSizer19->Add(m_buttonAddress, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5);
 
     fgSizer1->Add(bSizer19, 1, wxEXPAND|wxRIGHT, 5);
@@ -632,13 +632,13 @@ CSendDialogBase::CSendDialogBase(wxWindow* parent, wxWindowID id, const wxString
 
     bSizer23->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonSend = new wxButton(this, wxID_BUTTONSEND, wxT("&Send"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonSend = new DarkButton(this, wxID_BUTTONSEND, wxT("&Send"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonSend->SetFont(wxFont(wxNORMAL_FONT->GetPointSize(), 70, 90, 90, false, wxEmptyString));
     m_buttonSend->SetMinSize(wxSize(85,25));
 
     bSizer23->Add(m_buttonSend, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer23->Add(m_buttonCancel, 0, wxALL, 5);
@@ -699,13 +699,13 @@ CSendingDialogBase::CSendingDialogBase(wxWindow* parent, wxWindowID id, const wx
 
     bSizer69->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonOK = new wxButton(this, wxID_ANY, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonOK = new DarkButton(this, wxID_ANY, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonOK->Enable(false);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonCancel, 0, wxALL, 5);
@@ -742,7 +742,7 @@ CYourAddressDialogBase::CYourAddressDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer68->Add(0, 5, 0, wxEXPAND, 5);
 
-    m_staticText45 = new wxStaticText(this, wxID_ANY, wxT("These are your bcash addresses for receiving payments.\nYou may want to give a different one to each sender so you can keep track of who is paying you."), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText45 = new wxStaticText(this, wxID_ANY, wxT("These are your BC addresses for receiving payments.\nYou may want to give a different one to each sender so you can keep track of who is paying you."), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText45->Wrap(600);
     bSizer68->Add(m_staticText45, 0, wxALL, 5);
 
@@ -755,27 +755,27 @@ CYourAddressDialogBase::CYourAddressDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer69->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonRename = new wxButton(this, wxID_BUTTONRENAME, wxT("&Rename..."), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonRename = new DarkButton(this, wxID_BUTTONRENAME, wxT("&Rename..."), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonRename->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonRename, 0, wxALL, 5);
 
-    m_buttonNew = new wxButton(this, wxID_BUTTONNEW, wxT("&New Address..."), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonNew = new DarkButton(this, wxID_BUTTONNEW, wxT("&New Address..."), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonNew->SetMinSize(wxSize(110,25));
 
     bSizer69->Add(m_buttonNew, 0, wxALL, 5);
 
-    m_buttonCopy = new wxButton(this, wxID_BUTTONCOPY, wxT("&Copy to Clipboard"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCopy = new DarkButton(this, wxID_BUTTONCOPY, wxT("&Copy to Clipboard"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCopy->SetMinSize(wxSize(120,25));
 
     bSizer69->Add(m_buttonCopy, 0, wxALL, 5);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonCancel, 0, wxALL, 5);
@@ -822,7 +822,7 @@ CAddressBookDialogBase::CAddressBookDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer68->Add(0, 5, 0, wxEXPAND, 5);
 
-    m_staticText55 = new wxStaticText(this, wxID_ANY, wxT("bcash Address"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText55 = new wxStaticText(this, wxID_ANY, wxT("BC Address"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText55->Wrap(-1);
     m_staticText55->Hide();
 
@@ -837,27 +837,27 @@ CAddressBookDialogBase::CAddressBookDialogBase(wxWindow* parent, wxWindowID id, 
 
     bSizer69->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonEdit = new wxButton(this, wxID_BUTTONEDIT, wxT("&Edit..."), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonEdit = new DarkButton(this, wxID_BUTTONEDIT, wxT("&Edit..."), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonEdit->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonEdit, 0, wxALL, 5);
 
-    m_buttonNew = new wxButton(this, wxID_BUTTONNEW, wxT("&New Address..."), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonNew = new DarkButton(this, wxID_BUTTONNEW, wxT("&New Address..."), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonNew->SetMinSize(wxSize(110,25));
 
     bSizer69->Add(m_buttonNew, 0, wxALL, 5);
 
-    m_buttonDelete = new wxButton(this, wxID_BUTTONDELETE, wxT("&Delete"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonDelete = new DarkButton(this, wxID_BUTTONDELETE, wxT("&Delete"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonDelete->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonDelete, 0, wxALL, 5);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer69->Add(m_buttonCancel, 0, wxALL, 5);
@@ -911,7 +911,7 @@ CProductsDialogBase::CProductsDialogBase(wxWindow* parent, wxWindowID id, const 
     m_textCtrlSearch = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     bSizer23->Add(m_textCtrlSearch, 1, wxALL|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonSearch = new wxButton(this, wxID_ANY, wxT("&Search"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonSearch = new DarkButton(this, wxID_ANY, wxT("&Search"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer23->Add(m_buttonSearch, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5);
 
     bSizer22->Add(bSizer23, 0, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5);
@@ -1029,7 +1029,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField0 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField0, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel0 = new wxButton(m_scrolledWindow, wxID_DEL0, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel0 = new DarkButton(m_scrolledWindow, wxID_DEL0, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel0, 0, wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5);
 
     m_textCtrlLabel1 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1040,7 +1040,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField1 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField1, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel1 = new wxButton(m_scrolledWindow, wxID_DEL1, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel1 = new DarkButton(m_scrolledWindow, wxID_DEL1, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel1, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel2 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1051,7 +1051,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField2 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField2, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel2 = new wxButton(m_scrolledWindow, wxID_DEL2, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel2 = new DarkButton(m_scrolledWindow, wxID_DEL2, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel2, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel3 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1062,7 +1062,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField3 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField3, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel3 = new wxButton(m_scrolledWindow, wxID_DEL3, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel3 = new DarkButton(m_scrolledWindow, wxID_DEL3, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel3, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel4 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1073,7 +1073,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField4 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField4, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel4 = new wxButton(m_scrolledWindow, wxID_DEL4, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel4 = new DarkButton(m_scrolledWindow, wxID_DEL4, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel4, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel5 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1084,7 +1084,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField5 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField5, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel5 = new wxButton(m_scrolledWindow, wxID_DEL5, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel5 = new DarkButton(m_scrolledWindow, wxID_DEL5, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel5, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel6 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1095,7 +1095,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField6 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField6, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel6 = new wxButton(m_scrolledWindow, wxID_DEL6, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel6 = new DarkButton(m_scrolledWindow, wxID_DEL6, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel6, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel7 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1106,7 +1106,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField7 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField7, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel7 = new wxButton(m_scrolledWindow, wxID_DEL7, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel7 = new DarkButton(m_scrolledWindow, wxID_DEL7, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel7, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel8 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1117,7 +1117,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField8 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField8, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel8 = new wxButton(m_scrolledWindow, wxID_DEL8, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel8 = new DarkButton(m_scrolledWindow, wxID_DEL8, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel8, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel9 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1128,7 +1128,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField9 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField9, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel9 = new wxButton(m_scrolledWindow, wxID_DEL9, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel9 = new DarkButton(m_scrolledWindow, wxID_DEL9, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel9, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel10 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1139,7 +1139,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField10 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField10, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel10 = new wxButton(m_scrolledWindow, wxID_DEL10, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel10 = new DarkButton(m_scrolledWindow, wxID_DEL10, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel10, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel11 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1150,7 +1150,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField11 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField11, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel11 = new wxButton(m_scrolledWindow, wxID_DEL11, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel11 = new DarkButton(m_scrolledWindow, wxID_DEL11, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel11, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel12 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1161,7 +1161,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField12 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField12, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel12 = new wxButton(m_scrolledWindow, wxID_DEL12, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel12 = new DarkButton(m_scrolledWindow, wxID_DEL12, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel12, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel13 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1172,7 +1172,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField13 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField13, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel13 = new wxButton(m_scrolledWindow, wxID_DEL13, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel13 = new DarkButton(m_scrolledWindow, wxID_DEL13, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel13, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel14 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1183,7 +1183,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField14 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField14, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel14 = new wxButton(m_scrolledWindow, wxID_DEL14, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel14 = new DarkButton(m_scrolledWindow, wxID_DEL14, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel14, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel15 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1194,7 +1194,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField15 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField15, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel15 = new wxButton(m_scrolledWindow, wxID_DEL15, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel15 = new DarkButton(m_scrolledWindow, wxID_DEL15, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel15, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel16 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1205,7 +1205,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField16 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField16, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel16 = new wxButton(m_scrolledWindow, wxID_DEL16, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel16 = new DarkButton(m_scrolledWindow, wxID_DEL16, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel16, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel17 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1216,7 +1216,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField17 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField17, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel17 = new wxButton(m_scrolledWindow, wxID_DEL17, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel17 = new DarkButton(m_scrolledWindow, wxID_DEL17, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel17, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel18 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1227,7 +1227,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField18 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField18, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel18 = new wxButton(m_scrolledWindow, wxID_DEL18, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel18 = new DarkButton(m_scrolledWindow, wxID_DEL18, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel18, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     m_textCtrlLabel19 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -1238,7 +1238,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     m_textCtrlField19 = new wxTextCtrl(m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1,-1), 0);
     fgSizer5->Add(m_textCtrlField19, 0, wxALL|wxEXPAND|wxALIGN_CENTER_VERTICAL, 5);
 
-    m_buttonDel19 = new wxButton(m_scrolledWindow, wxID_DEL19, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
+    m_buttonDel19 = new DarkButton(m_scrolledWindow, wxID_DEL19, wxT("Delete"), wxDefaultPosition, wxSize(60,20), 0);
     fgSizer5->Add(m_buttonDel19, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5);
 
     bSizer21->Add(fgSizer5, 0, wxEXPAND, 5);
@@ -1246,7 +1246,7 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     wxBoxSizer* bSizer25;
     bSizer25 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonAddField = new wxButton(m_scrolledWindow, wxID_ANY, wxT("&Add Field"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonAddField = new DarkButton(m_scrolledWindow, wxID_ANY, wxT("&Add Field"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer25->Add(m_buttonAddField, 0, wxALL, 5);
 
     bSizer21->Add(bSizer25, 0, wxALIGN_CENTER_HORIZONTAL, 5);
@@ -1259,17 +1259,17 @@ CEditProductDialogBase::CEditProductDialogBase(wxWindow* parent, wxWindowID id, 
     wxBoxSizer* bSizer26;
     bSizer26 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonOK = new wxButton(this, wxID_BUTTONSEND, wxT("&Send"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonOK = new DarkButton(this, wxID_BUTTONSEND, wxT("&Send"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonPreview = new wxButton(this, wxID_BUTTONPREVIEW, wxT("&Preview"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonPreview = new DarkButton(this, wxID_BUTTONPREVIEW, wxT("&Preview"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonPreview->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonPreview, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonCancel, 0, wxALL, 5);
@@ -1457,10 +1457,10 @@ CViewProductDialogBase::CViewProductDialogBase(wxWindow* parent, wxWindowID id, 
     wxBoxSizer* bSizer25;
     bSizer25 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonSubmitForm = new wxButton(m_scrolledWindow, wxID_BUTTONSAMPLE, wxT("&Submit"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonSubmitForm = new DarkButton(m_scrolledWindow, wxID_BUTTONSAMPLE, wxT("&Submit"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer25->Add(m_buttonSubmitForm, 0, wxALL, 5);
 
-    m_buttonCancelForm = new wxButton(m_scrolledWindow, wxID_CANCEL2, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonCancelForm = new DarkButton(m_scrolledWindow, wxID_CANCEL2, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer25->Add(m_buttonCancelForm, 0, wxALL, 5);
 
     bSizer21->Add(bSizer25, 0, wxALIGN_CENTER_HORIZONTAL, 5);
@@ -1475,18 +1475,18 @@ CViewProductDialogBase::CViewProductDialogBase(wxWindow* parent, wxWindowID id, 
     wxBoxSizer* bSizer26;
     bSizer26 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonBack = new wxButton(this, wxID_BUTTONBACK, wxT("< &Back  "), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonBack = new DarkButton(this, wxID_BUTTONBACK, wxT("< &Back  "), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonBack->Enable(false);
     m_buttonBack->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonBack, 0, wxALL, 5);
 
-    m_buttonNext = new wxButton(this, wxID_BUTTONNEXT, wxT("  &Next >"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonNext = new DarkButton(this, wxID_BUTTONNEXT, wxT("  &Next >"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonNext->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonNext, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonCancel, 0, wxALL, 5);
@@ -1534,7 +1534,7 @@ CViewOrderDialogBase::CViewOrderDialogBase(wxWindow* parent, wxWindowID id, cons
     wxBoxSizer* bSizer26;
     bSizer26 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer26->Add(m_buttonOK, 0, wxALL, 5);
@@ -1593,12 +1593,12 @@ CEditReviewDialogBase::CEditReviewDialogBase(wxWindow* parent, wxWindowID id, co
     wxBoxSizer* bSizer113;
     bSizer113 = new wxBoxSizer(wxHORIZONTAL);
 
-    m_buttonSubmit = new wxButton(this, wxID_SUBMIT, wxT("&Submit"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonSubmit = new DarkButton(this, wxID_SUBMIT, wxT("&Submit"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonSubmit->SetMinSize(wxSize(85,25));
 
     bSizer113->Add(m_buttonSubmit, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer113->Add(m_buttonCancel, 0, wxALL, 5);
@@ -1642,7 +1642,7 @@ CPokerLobbyDialogBase::CPokerLobbyDialogBase(wxWindow* parent, wxWindowID id, co
     m_listCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT);
     bSizer172->Add(m_listCtrl, 1, wxEXPAND|wxALL, 5);
 
-    m_buttonNewTable = new wxButton(this, wxID_OPENNEWTABLE, wxT("&Open New Table"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonNewTable = new DarkButton(this, wxID_OPENNEWTABLE, wxT("&Open New Table"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer172->Add(m_buttonNewTable, 0, wxALL, 5);
 
     bSizer156->Add(bSizer172, 1, wxEXPAND, 5);
@@ -1678,19 +1678,19 @@ CPokerDialogBase::CPokerDialogBase(wxWindow* parent, wxWindowID id, const wxStri
 
     bSizer174->Add(m_checkSitOut, 0, wxALL, 5);
 
-    m_buttonDealHand = new wxButton(this, wxID_DEALHAND, wxT("&Deal Hand"), wxDefaultPosition, wxSize(150,25), 0);
+    m_buttonDealHand = new DarkButton(this, wxID_DEALHAND, wxT("&Deal Hand"), wxDefaultPosition, wxSize(150,25), 0);
     bSizer174->Add(m_buttonDealHand, 0, wxALL, 5);
 
-    m_buttonFold = new wxButton(this, wxID_FOLD, wxT("&Fold"), wxDefaultPosition, wxSize(80,25), 0);
+    m_buttonFold = new DarkButton(this, wxID_FOLD, wxT("&Fold"), wxDefaultPosition, wxSize(80,25), 0);
     bSizer174->Add(m_buttonFold, 0, wxALL, 5);
 
-    m_buttonCall = new wxButton(this, wxID_CALL, wxT("&Call"), wxDefaultPosition, wxSize(80,25), 0);
+    m_buttonCall = new DarkButton(this, wxID_CALL, wxT("&Call"), wxDefaultPosition, wxSize(80,25), 0);
     bSizer174->Add(m_buttonCall, 0, wxALL, 5);
 
-    m_buttonRaise = new wxButton(this, wxID_RAISE, wxT("&Raise"), wxDefaultPosition, wxSize(80,25), 0);
+    m_buttonRaise = new DarkButton(this, wxID_RAISE, wxT("&Raise"), wxDefaultPosition, wxSize(80,25), 0);
     bSizer174->Add(m_buttonRaise, 0, wxALL, 5);
 
-    m_buttonLeaveTable = new wxButton(this, wxID_LEAVETABLE, wxT("&Leave Table"), wxDefaultPosition, wxSize(90,25), 0);
+    m_buttonLeaveTable = new DarkButton(this, wxID_LEAVETABLE, wxT("&Leave Table"), wxDefaultPosition, wxSize(90,25), 0);
     bSizer174->Add(m_buttonLeaveTable, 0, wxALL, 5);
 
     m_textDitchPlayer = new wxTextCtrl(this, wxID_DITCHPLAYER, wxEmptyString, wxDefaultPosition, wxSize(45,-1), wxTE_PROCESS_ENTER);
@@ -1827,12 +1827,12 @@ CGetTextFromUserDialogBase::CGetTextFromUserDialogBase(wxWindow* parent, wxWindo
 
     bSizer80->Add(0, 0, 1, wxEXPAND, 5);
 
-    m_buttonOK = new wxButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(-1,-1), 0);
+    m_buttonOK = new DarkButton(this, wxID_OK, wxT("OK"), wxDefaultPosition, wxSize(-1,-1), 0);
     m_buttonOK->SetMinSize(wxSize(85,25));
 
     bSizer80->Add(m_buttonOK, 0, wxALL, 5);
 
-    m_buttonCancel = new wxButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
+    m_buttonCancel = new DarkButton(this, wxID_CANCEL, wxT("Cancel"), wxDefaultPosition, wxDefaultSize, 0);
     m_buttonCancel->SetMinSize(wxSize(85,25));
 
     bSizer80->Add(m_buttonCancel, 0, wxALL, 5);

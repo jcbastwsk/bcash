@@ -31,7 +31,7 @@ unsigned int nTransactionsUpdated = 0;
 map<COutPoint, CInPoint> mapNextTx;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x00000eedf741f6468755a0708ec37ea3e73b1c752e674b502c4b9c34a37acce7");
+uint256 hashGenesisBlock("0x000000001db70ca2dce7f65f25675cdc784a44ac9c47d40fc18d997f13665783");
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 hashBestChain = 0;
@@ -1374,7 +1374,7 @@ string GetAppDir()
 #ifdef _WIN32
     else if (getenv("APPDATA"))
     {
-        strDir = strprintf("%s\\bcash", getenv("APPDATA"));
+        strDir = strprintf("%s\\bnet", getenv("APPDATA"));
     }
     else if (getenv("USERPROFILE"))
     {
@@ -1385,7 +1385,7 @@ string GetAppDir()
             fMkdirDone = true;
             _mkdir(strAppData.c_str());
         }
-        strDir = strprintf("%s\\bcash", strAppData.c_str());
+        strDir = strprintf("%s\\bnet", strAppData.c_str());
     }
     else
     {
@@ -1400,7 +1400,7 @@ string GetAppDir()
 #else
     else if (getenv("HOME"))
     {
-        strDir = strprintf("%s/.bcash", getenv("HOME"));
+        strDir = strprintf("%s/.bnet", getenv("HOME"));
     }
     else
     {
@@ -1476,8 +1476,8 @@ bool LoadBlockIndex(bool fAllowNew)
             return false;
 
 
-        // Bcash Genesis Block
-        char* pszTimestamp = "Zelenskyy 09/Feb/2026 Americans propose ending war by start of summer";
+        // Bnet Genesis Block
+        char* pszTimestamp = "Irish Examiner 15/Feb/2026 Winter Olympic village runs out of condoms after three days";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
@@ -1489,9 +1489,9 @@ bool LoadBlockIndex(bool fAllowNew)
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 1;
-        block.nTime    = 1739107200;
-        block.nBits    = 0x1e0fffff;
-        block.nNonce   = 1676533;
+        block.nTime    = 1739539200;
+        block.nBits    = 0x1c7fffff;
+        block.nNonce   = 895544416;
 
         // Verify genesis block matches expected hash
         assert(block.GetHash() == hashGenesisBlock);
@@ -2547,7 +2547,7 @@ bool BcashMiner()
                     printf("  BLOCK FOUND!  Height: %d\n", nBestHeight + 1);
                     printf("  Hash:   %s\n", hash.GetHex().c_str());
                     printf("  Target: %s\n", hashTarget.GetHex().c_str());
-                    printf("  Reward: %s BCASH\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+                    printf("  Reward: %s BC\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
                     printf("  Time:   %s\n", DateTimeStr(pblock->nTime).c_str());
                     printf("  Nonce:  %u\n", tmp.block.nNonce);
                     printf("  Tx:     %d\n", (int)pblock->vtx.size());
@@ -2644,10 +2644,13 @@ void MinerThread(void* parg)
     {
         Sleep(50);
         if (fShutdown) return;
-        while (vNodes.empty() && !fSoloMine)
+        while (vNodes.empty())
         {
+            if (nThread == 0 && !fSoloMine)
+                printf("Waiting for at least one peer before mining...\n");
             Sleep(1000);
             if (fShutdown) return;
+            if (fSoloMine) break;
         }
 
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
@@ -2810,7 +2813,7 @@ void MinerThread(void* parg)
                 printf("  BLOCK FOUND by thread %d!  Height: %d\n", nThread, nBestHeight + 1);
                 printf("  Hash:   %s\n", hash.GetHex().c_str());
                 printf("  Target: %s\n", hashTarget.GetHex().c_str());
-                printf("  Reward: %s BCASH\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+                printf("  Reward: %s BC\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
                 printf("  Nonce:  %u\n", tmp.block.nNonce);
                 printf("========================================\n\n");
 

@@ -1,6 +1,6 @@
-# Makefile for bcash on macOS (Monterey 12.0+)
-# gmake -f Makefile.osx          -> bcash (headless/TUI)
-# gmake -f Makefile.osx gui      -> bcash-gui (wxWidgets GUI)
+# Makefile for bnet on macOS (Monterey 12.0+)
+# gmake -f Makefile.osx          -> bnet (headless/TUI)
+# gmake -f Makefile.osx gui      -> bnet-gui (wxWidgets GUI)
 #
 # Prerequisites (Homebrew):
 #   brew install openssl@3 berkeley-db@5 boost wxwidgets
@@ -57,6 +57,9 @@ LIBS_TUI=$(LIBS_COMMON)
 
 OBJS_TUI=util.o script.o db.o net.o main.o market.o sha.o sha256_arm64.o irc.o news.o bgold.o rpc.o gamechannel.o chess.o poker.o imageboard.o cluster.o ui_tui.o
 
+# --- Headless (daemon) build ---
+OBJS_HEADLESS=util.o script.o db.o net.o main.o market.o sha.o sha256_arm64.o irc.o news.o bgold.o rpc.o gamechannel.o chess.o poker.o imageboard.o cluster.o ui_stub.o
+
 # --- GUI build ---
 CXXFLAGS_GUI=$(CXXFLAGS_COMMON) -DGUI $(WX_CXXFLAGS)
 LDFLAGS_GUI=$(LDFLAGS_COMMON)
@@ -64,15 +67,18 @@ LIBS_GUI=-ldb_cxx-5 -lssl -lcrypto -lpthread -framework CoreServices -framework 
 
 OBJS_GUI=util.gui.o script.gui.o db.gui.o net.gui.o main.gui.o market.gui.o sha.gui.o sha256_arm64.gui.o irc.gui.o news.gui.o bgold.gui.o rpc.gui.o gamechannel.gui.o chess.gui.o poker.gui.o imageboard.gui.o cluster.gui.o ui.gui.o uibase.gui.o osx_helper.o
 
-# Default target: headless
-all: bcash
+# Default target: TUI
+all: bnet
 
-bcash: $(OBJS_TUI)
+bnet: $(OBJS_TUI)
 	$(CXX) $(LDFLAGS_TUI) -o $@ $(OBJS_TUI) $(LIBS_TUI)
 
-gui: bcash-gui
+bnetd: $(OBJS_HEADLESS)
+	$(CXX) $(LDFLAGS_TUI) -o $@ $(OBJS_HEADLESS) $(LIBS_TUI)
 
-bcash-gui: $(OBJS_GUI)
+gui: bnet-gui
+
+bnet-gui: $(OBJS_GUI)
 	$(CXX) $(LDFLAGS_GUI) -o $@ $(OBJS_GUI) $(LIBS_GUI)
 
 # TUI object rules
@@ -84,7 +90,7 @@ bcash-gui: $(OBJS_GUI)
 	$(CXX) $(CXXFLAGS_GUI) -c -o $@ $<
 
 clean:
-	rm -f $(OBJS_TUI) $(OBJS_GUI) bcash bcash-gui
+	rm -f $(OBJS_TUI) $(OBJS_GUI) bnet bnet-gui
 
 # Dependencies (approximate)
 util.o: util.cpp headers.h util.h serialize.h uint256.h

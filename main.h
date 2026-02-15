@@ -19,8 +19,8 @@ static const int64 COIN = 100000000;
 static const int64 CENT = 1000000;
 static const int COINBASE_MATURITY = 100;
 
-// Easier initial difficulty for bcash bootstrap (>> 20 instead of >> 32)
-static const CBigNum bnProofOfWorkLimit(~uint256(0) >> 20);
+// Initial difficulty (>> 33), retargets to 10-min blocks every 2016 blocks
+static const CBigNum bnProofOfWorkLimit(~uint256(0) >> 33);
 
 
 

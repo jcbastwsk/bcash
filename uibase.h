@@ -12,6 +12,7 @@
 #ifndef __uibase__
 #define __uibase__
 
+#include "darktheme.h"
 #include <wx/string.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
@@ -44,7 +45,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #define wxID_MAINFRAME 1000
-#define wxID_OPTIONSGENERATEBCASH 1001
+#define wxID_OPTIONSGENERATEBC 1001
 #define wxID_BUTTONSEND 1002
 #define wxID_BUTTONRECEIVE 1003
 #define wxID_TEXTCTRLADDRESS 1004
@@ -114,8 +115,8 @@ protected:
 
     wxStaticText* m_staticText32;
     wxTextCtrl* m_textCtrlAddress;
-    wxButton* m_buttonCopy;
-    wxButton* m_button91;
+    DarkButton* m_buttonCopy;
+    DarkButton* m_button91;
 
     wxPanel* m_panel14;
     wxStaticText* m_staticText41;
@@ -167,7 +168,7 @@ public:
     wxListCtrl* m_listCtrlNews;
     wxListCtrl* m_listCtrlMarket;
     wxListCtrl* m_listCtrlBgold;
-    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(780,520), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
+    CMainFrameBase(wxWindow* parent, wxWindowID id = wxID_MAINFRAME, const wxString& title = wxT("bnet"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(780,520), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxTAB_TRAVERSAL);
     ~CMainFrameBase();
 
 };
@@ -181,7 +182,7 @@ private:
 
 protected:
     wxHtmlWindow* m_htmlWin;
-    wxButton* m_buttonOK;
+    DarkButton* m_buttonOK;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnButtonOK(wxCommandEvent& event){ event.Skip(); }
@@ -205,8 +206,8 @@ protected:
     wxStaticText* m_staticText32;
     wxStaticText* m_staticText31;
     wxTextCtrl* m_textCtrlTransactionFee;
-    wxButton* m_buttonOK;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonOK;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnKillFocusTransactionFee(wxFocusEvent& event){ event.Skip(); }
@@ -235,7 +236,7 @@ protected:
     wxStaticText* m_staticTextMain;
 
 
-    wxButton* m_buttonOK;
+    DarkButton* m_buttonOK;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnButtonOK(wxCommandEvent& event){ event.Skip(); }
@@ -243,7 +244,7 @@ protected:
 
 public:
     wxStaticText* m_staticTextVersion;
-    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About bcash"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
+    CAboutDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("About bnet"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(507,298), long style = wxDEFAULT_DIALOG_STYLE);
     ~CAboutDialogBase();
 
 };
@@ -263,8 +264,8 @@ protected:
     wxStaticBitmap* m_bitmapCheckMark;
     wxStaticText* m_staticText36;
     wxTextCtrl* m_textCtrlAddress;
-    wxButton* m_buttonPaste;
-    wxButton* m_buttonAddress;
+    DarkButton* m_buttonPaste;
+    DarkButton* m_buttonAddress;
     wxStaticText* m_staticText19;
     wxTextCtrl* m_textCtrlAmount;
     wxStaticText* m_staticText20;
@@ -274,8 +275,8 @@ protected:
     wxStaticText* m_staticTextMessage;
     wxTextCtrl* m_textCtrlMessage;
 
-    wxButton* m_buttonSend;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonSend;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnKeyDown(wxKeyEvent& event){ event.Skip(); }
@@ -304,8 +305,8 @@ protected:
     wxStaticText* m_staticTextSending;
     wxTextCtrl* m_textCtrlStatus;
 
-    wxButton* m_buttonOK;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonOK;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnClose(wxCloseEvent& event){ event.Skip(); }
@@ -332,11 +333,11 @@ protected:
     wxStaticText* m_staticText45;
     wxListCtrl* m_listCtrl;
 
-    wxButton* m_buttonRename;
-    wxButton* m_buttonNew;
-    wxButton* m_buttonCopy;
-    wxButton* m_buttonOK;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonRename;
+    DarkButton* m_buttonNew;
+    DarkButton* m_buttonCopy;
+    DarkButton* m_buttonOK;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnClose(wxCloseEvent& event){ event.Skip(); }
@@ -351,7 +352,7 @@ protected:
 
 
 public:
-    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your bcash Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
+    CYourAddressDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Your BC Address"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
     ~CYourAddressDialogBase();
 
 };
@@ -368,10 +369,10 @@ protected:
     wxStaticText* m_staticText55;
     wxListCtrl* m_listCtrl;
 
-    wxButton* m_buttonEdit;
-    wxButton* m_buttonNew;
-    wxButton* m_buttonDelete;
-    wxButton* m_buttonOK;
+    DarkButton* m_buttonEdit;
+    DarkButton* m_buttonNew;
+    DarkButton* m_buttonDelete;
+    DarkButton* m_buttonOK;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnClose(wxCloseEvent& event){ event.Skip(); }
@@ -386,7 +387,7 @@ protected:
 
 
 public:
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonCancel;
     CAddressBookDialogBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Address Book"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(610,390), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
     ~CAddressBookDialogBase();
 
@@ -402,7 +403,7 @@ private:
 protected:
     wxComboBox* m_comboBoxCategory;
     wxTextCtrl* m_textCtrlSearch;
-    wxButton* m_buttonSearch;
+    DarkButton* m_buttonSearch;
     wxListCtrl* m_listCtrl;
 
     // Virtual event handlers, overide them in your derived class
@@ -442,68 +443,68 @@ protected:
 
     wxTextCtrl* m_textCtrlLabel0;
     wxTextCtrl* m_textCtrlField0;
-    wxButton* m_buttonDel0;
+    DarkButton* m_buttonDel0;
     wxTextCtrl* m_textCtrlLabel1;
     wxTextCtrl* m_textCtrlField1;
-    wxButton* m_buttonDel1;
+    DarkButton* m_buttonDel1;
     wxTextCtrl* m_textCtrlLabel2;
     wxTextCtrl* m_textCtrlField2;
-    wxButton* m_buttonDel2;
+    DarkButton* m_buttonDel2;
     wxTextCtrl* m_textCtrlLabel3;
     wxTextCtrl* m_textCtrlField3;
-    wxButton* m_buttonDel3;
+    DarkButton* m_buttonDel3;
     wxTextCtrl* m_textCtrlLabel4;
     wxTextCtrl* m_textCtrlField4;
-    wxButton* m_buttonDel4;
+    DarkButton* m_buttonDel4;
     wxTextCtrl* m_textCtrlLabel5;
     wxTextCtrl* m_textCtrlField5;
-    wxButton* m_buttonDel5;
+    DarkButton* m_buttonDel5;
     wxTextCtrl* m_textCtrlLabel6;
     wxTextCtrl* m_textCtrlField6;
-    wxButton* m_buttonDel6;
+    DarkButton* m_buttonDel6;
     wxTextCtrl* m_textCtrlLabel7;
     wxTextCtrl* m_textCtrlField7;
-    wxButton* m_buttonDel7;
+    DarkButton* m_buttonDel7;
     wxTextCtrl* m_textCtrlLabel8;
     wxTextCtrl* m_textCtrlField8;
-    wxButton* m_buttonDel8;
+    DarkButton* m_buttonDel8;
     wxTextCtrl* m_textCtrlLabel9;
     wxTextCtrl* m_textCtrlField9;
-    wxButton* m_buttonDel9;
+    DarkButton* m_buttonDel9;
     wxTextCtrl* m_textCtrlLabel10;
     wxTextCtrl* m_textCtrlField10;
-    wxButton* m_buttonDel10;
+    DarkButton* m_buttonDel10;
     wxTextCtrl* m_textCtrlLabel11;
     wxTextCtrl* m_textCtrlField11;
-    wxButton* m_buttonDel11;
+    DarkButton* m_buttonDel11;
     wxTextCtrl* m_textCtrlLabel12;
     wxTextCtrl* m_textCtrlField12;
-    wxButton* m_buttonDel12;
+    DarkButton* m_buttonDel12;
     wxTextCtrl* m_textCtrlLabel13;
     wxTextCtrl* m_textCtrlField13;
-    wxButton* m_buttonDel13;
+    DarkButton* m_buttonDel13;
     wxTextCtrl* m_textCtrlLabel14;
     wxTextCtrl* m_textCtrlField14;
-    wxButton* m_buttonDel14;
+    DarkButton* m_buttonDel14;
     wxTextCtrl* m_textCtrlLabel15;
     wxTextCtrl* m_textCtrlField15;
-    wxButton* m_buttonDel15;
+    DarkButton* m_buttonDel15;
     wxTextCtrl* m_textCtrlLabel16;
     wxTextCtrl* m_textCtrlField16;
-    wxButton* m_buttonDel16;
+    DarkButton* m_buttonDel16;
     wxTextCtrl* m_textCtrlLabel17;
     wxTextCtrl* m_textCtrlField17;
-    wxButton* m_buttonDel17;
+    DarkButton* m_buttonDel17;
     wxTextCtrl* m_textCtrlLabel18;
     wxTextCtrl* m_textCtrlField18;
-    wxButton* m_buttonDel18;
+    DarkButton* m_buttonDel18;
     wxTextCtrl* m_textCtrlLabel19;
     wxTextCtrl* m_textCtrlField19;
-    wxButton* m_buttonDel19;
-    wxButton* m_buttonAddField;
-    wxButton* m_buttonOK;
-    wxButton* m_buttonPreview;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonDel19;
+    DarkButton* m_buttonAddField;
+    DarkButton* m_buttonOK;
+    DarkButton* m_buttonPreview;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnKeyDown(wxKeyEvent& event){ event.Skip(); }
@@ -552,11 +553,11 @@ protected:
     wxScrolledWindow* m_scrolledWindow;
     wxRichTextCtrl* m_richTextHeading;
     wxStaticText* m_staticTextInstructions;
-    wxButton* m_buttonSubmitForm;
-    wxButton* m_buttonCancelForm;
-    wxButton* m_buttonBack;
-    wxButton* m_buttonNext;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonSubmitForm;
+    DarkButton* m_buttonCancelForm;
+    DarkButton* m_buttonBack;
+    DarkButton* m_buttonNext;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnButtonSubmitForm(wxCommandEvent& event){ event.Skip(); }
@@ -581,7 +582,7 @@ private:
 
 protected:
     wxHtmlWindow* m_htmlWin;
-    wxButton* m_buttonOK;
+    DarkButton* m_buttonOK;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnButtonOK(wxCommandEvent& event){ event.Skip(); }
@@ -608,8 +609,8 @@ protected:
     wxChoice* m_choiceStars;
     wxStaticText* m_staticText43;
     wxTextCtrl* m_textCtrlReview;
-    wxButton* m_buttonSubmit;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonSubmit;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnKeyDown(wxKeyEvent& event){ event.Skip(); }
@@ -633,7 +634,7 @@ private:
 protected:
     wxTreeCtrl* m_treeCtrl;
     wxListCtrl* m_listCtrl;
-    wxButton* m_buttonNewTable;
+    DarkButton* m_buttonNewTable;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnTreeSelChanged(wxTreeEvent& event){ event.Skip(); }
@@ -656,11 +657,11 @@ class CPokerDialogBase : public wxFrame
 private:
 
 protected:
-    wxButton* m_buttonDealHand;
-    wxButton* m_buttonFold;
-    wxButton* m_buttonCall;
-    wxButton* m_buttonRaise;
-    wxButton* m_buttonLeaveTable;
+    DarkButton* m_buttonDealHand;
+    DarkButton* m_buttonFold;
+    DarkButton* m_buttonCall;
+    DarkButton* m_buttonRaise;
+    DarkButton* m_buttonLeaveTable;
     wxTextCtrl* m_textDitchPlayer;
 
     // Virtual event handlers, overide them in your derived class
@@ -710,8 +711,8 @@ protected:
     wxTextCtrl* m_textCtrl2;
 
 
-    wxButton* m_buttonOK;
-    wxButton* m_buttonCancel;
+    DarkButton* m_buttonOK;
+    DarkButton* m_buttonCancel;
 
     // Virtual event handlers, overide them in your derived class
     virtual void OnClose(wxCloseEvent& event){ event.Skip(); }

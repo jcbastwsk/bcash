@@ -343,7 +343,7 @@ static void DrawStatusBar()
             }
         }
     }
-    mvwprintw(winStatus, 1, cols / 3, "BCASH: %s", FormatMoney(nConfirmed).c_str());
+    mvwprintw(winStatus, 1, cols / 3, "BC: %s", FormatMoney(nConfirmed).c_str());
     if (nUnconfirmed > 0)
     {
         wattron(winStatus, A_DIM);
@@ -761,7 +761,7 @@ static void DrawBgoldTab()
 
     // Block table header
     wattron(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
-    mvwprintw(winContent, line, 2, " HEIGHT  %-26s %-26s", "BGOLD HASH", "BCASH ANCHOR");
+    mvwprintw(winContent, line, 2, " HEIGHT  %-26s %-26s", "BGOLD HASH", "BC ANCHOR");
     wattroff(winContent, COLOR_PAIR(C_HEADER) | A_BOLD);
     line++;
 
@@ -803,7 +803,7 @@ static void DrawSendTab()
     ColorBox(winContent, C_BORDER);
 
     wattron(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
-    mvwprintw(winContent, 0, 2, " > Send BCASH ");
+    mvwprintw(winContent, 0, 2, " > Send BC ");
     wattroff(winContent, COLOR_PAIR(C_TITLE) | A_BOLD);
 
     int line = 2;
@@ -813,7 +813,7 @@ static void DrawSendTab()
 
     // Balance display
     wattron(winContent, COLOR_PAIR(C_TX_POS) | A_BOLD);
-    mvwprintw(winContent, line, cols - 30, "Balance: %s BCASH", FormatMoney(GetBalance()).c_str());
+    mvwprintw(winContent, line, cols - 30, "Balance: %s BC", FormatMoney(GetBalance()).c_str());
     wattroff(winContent, COLOR_PAIR(C_TX_POS) | A_BOLD);
     line += 2;
 
@@ -850,7 +850,7 @@ static void DrawSendTab()
         wattron(winContent, COLOR_PAIR(C_SEND_FIELD));
     else
         wattron(winContent, COLOR_PAIR(C_DIM));
-    mvwprintw(winContent, line, fieldX, "[%-14s] BCASH", strSendAmount.c_str());
+    mvwprintw(winContent, line, fieldX, "[%-14s] BC", strSendAmount.c_str());
     if (nSendField == 1)
     {
         wattroff(winContent, COLOR_PAIR(C_SEND_FIELD));
@@ -979,7 +979,7 @@ static void DrawWalletDetailView()
     wattroff(winContent, COLOR_PAIR(C_HEADER));
     int amtColor = nNet > 0 ? C_TX_POS : (nNet < 0 ? C_TX_NEG : C_TX_ZERO);
     wattron(winContent, COLOR_PAIR(amtColor) | A_BOLD);
-    mvwprintw(winContent, line, 10, "%s BCASH", FormatMoney(nNet).c_str());
+    mvwprintw(winContent, line, 10, "%s BC", FormatMoney(nNet).c_str());
     wattroff(winContent, COLOR_PAIR(amtColor) | A_BOLD);
     line++;
 
@@ -988,7 +988,7 @@ static void DrawWalletDetailView()
         wattron(winContent, COLOR_PAIR(C_HEADER));
         mvwprintw(winContent, line, 2, "Fee:");
         wattroff(winContent, COLOR_PAIR(C_HEADER));
-        mvwprintw(winContent, line, 10, "%s BCASH", FormatMoney(nFee).c_str());
+        mvwprintw(winContent, line, 10, "%s BC", FormatMoney(nFee).c_str());
         line++;
     }
 
@@ -1009,10 +1009,23 @@ static void DrawWalletDetailView()
     {
         const CTxOut& txout = pwtx->vout[i];
         bool fMine = txout.IsMine();
+
+        // Extract address from output
+        string strAddr;
+        uint160 hash160;
+        if (ExtractHash160(txout.scriptPubKey, hash160))
+            strAddr = Hash160ToAddress(hash160);
+
         wattron(winContent, COLOR_PAIR(fMine ? C_TX_POS : C_DIM));
-        mvwprintw(winContent, line, 4, "[%d] %15s %s", i,
-            FormatMoney(txout.nValue).c_str(),
-            fMine ? "(mine)" : "");
+        if (!strAddr.empty())
+            mvwprintw(winContent, line, 4, "[%d] %15s  %s %s", i,
+                FormatMoney(txout.nValue).c_str(),
+                strAddr.c_str(),
+                fMine ? "(mine)" : "");
+        else
+            mvwprintw(winContent, line, 4, "[%d] %15s %s", i,
+                FormatMoney(txout.nValue).c_str(),
+                fMine ? "(mine)" : "");
         wattroff(winContent, COLOR_PAIR(fMine ? C_TX_POS : C_DIM));
         line++;
     }
@@ -1133,7 +1146,7 @@ static void DrawChessTab()
 
                 if (fMine)
                     wattron(winContent, COLOR_PAIR(C_TX_POS));
-                mvwprintw(winContent, line, 4, "%s  Bet: %s BCASH  %s",
+                mvwprintw(winContent, line, 4, "%s  Bet: %s BC  %s",
                     strHash.c_str(), strBet.c_str(), fMine ? "(yours)" : "");
                 if (fMine)
                     wattroff(winContent, COLOR_PAIR(C_TX_POS));
@@ -1373,7 +1386,7 @@ static void DrawPokerTab()
 
                 if (fMine)
                     wattron(winContent, COLOR_PAIR(C_TX_POS));
-                mvwprintw(winContent, line, 4, "%s  Ante: %s BCASH  %s",
+                mvwprintw(winContent, line, 4, "%s  Ante: %s BC  %s",
                     strHash.c_str(), strBet.c_str(), fMine ? "(yours)" : "");
                 if (fMine)
                     wattroff(winContent, COLOR_PAIR(C_TX_POS));
@@ -1561,7 +1574,7 @@ static void DoSend()
     uint160 hash160;
     if (!AddressToHash160(strSendAddress, hash160))
     {
-        strSendStatus = "ERROR: invalid bcash address";
+        strSendStatus = "ERROR: invalid BC address";
         fSendError = true;
         return;
     }
@@ -1593,7 +1606,7 @@ static void DoSend()
         return;
     }
 
-    strSendStatus = strprintf("SENT %s BCASH -> %s  tx:%s",
+    strSendStatus = strprintf("SENT %s BC -> %s  tx:%s",
         FormatMoney(nAmount).c_str(),
         strSendAddress.substr(0, 12).c_str(),
         wtx.GetHash().ToString().substr(0, 12).c_str());
@@ -1681,7 +1694,7 @@ int main(int argc, char* argv[])
             nMiningThreads = atoi(argv[++i]);
         else if (arg == "-help" || arg == "-h")
         {
-            printf("Usage: bcash [options]\n");
+            printf("Usage: bnet [options]\n");
             printf("Options:\n");
             printf("  -nogenerate       Don't mine blocks\n");
             printf("  -solo             Mine without peers (solo/bootstrap mode)\n");
@@ -1697,7 +1710,7 @@ int main(int argc, char* argv[])
 
     fGenerateBcash = fGenerate;
 
-    printf("bcash v0.1.0 - loading...\n");
+    printf("bnet v0.2.0 - loading...\n");
 
     if (!LoadAddresses())
         fprintf(stderr, "Warning: Could not load addresses\n");

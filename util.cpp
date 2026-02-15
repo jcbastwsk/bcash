@@ -232,7 +232,7 @@ void PrintException(std::exception* pex, const char* pszThread)
     GetModuleFileName(NULL, pszModule, sizeof(pszModule));
     _strlwr(pszModule);
 #else
-    const char* pszModule = "bcash";
+    const char* pszModule = "bnet";
 #endif
     char pszMessage[1000];
     if (pex)
