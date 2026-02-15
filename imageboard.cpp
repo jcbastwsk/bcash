@@ -143,22 +143,17 @@ bool CreateImagePost(const string& strBoard, const string& strSubject, const str
     vchPayload.insert(vchPayload.end(), vchData.begin(), vchData.end());
     scriptData << vchPayload;
 
+    // Require spendable (mature) coins to post
+    if (GetBalance() == 0)
+        return error("CreateImagePost() : no mature coins available (need %d confirmations)", COINBASE_MATURITY);
+
     CWalletTx wtx;
     int64 nFeeRequired;
     if (!CreateTransaction(scriptData, 0, wtx, nFeeRequired))
     {
-        printf("CreateImagePost() : failed to create transaction (fee: %s)\n",
-            FormatMoney(nFeeRequired).c_str());
-        // Fall back to P2P relay if we can't create a tx (e.g. no balance)
-        if (!AcceptImagePost(post))
-            return error("CreateImagePost() : post not accepted");
-        uint256 hash = post.GetHash();
-        CDataStream ss2(SER_NETWORK);
-        ss2 << post;
-        CInv inv(MSG_IMAGE_POST, hash);
-        RelayMessage(inv, ss2);
-        printf("CreateImagePost() : relayed via P2P (no funds for on-chain tx)\n");
-        return true;
+        printf("CreateImagePost() : failed to create transaction (fee: %s, balance: %s)\n",
+            FormatMoney(nFeeRequired).c_str(), FormatMoney(GetBalance()).c_str());
+        return error("CreateImagePost() : insufficient funds for on-chain post");
     }
 
     if (!CommitTransactionSpent(wtx))
