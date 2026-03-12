@@ -132,3 +132,19 @@ src/fuzz.cpp
 .updatecheck-token
 .env
 poetry.lock
+
+# BCASH local workspace artifacts
+.minimax/
+ops/*.local.md
+*.out
+
+# BCASH local binaries
+bnet
+bnetd
+bnet-gui
+src/bcash
+src/bcashd
+src/bcash-cli
+src/bcash-gtest
+src/bcash-tx
+src/bcashd-wallet-tool
