@@ -2,6 +2,8 @@ Zcash 6.11.0
 <img align="right" width="120" height="80" src="doc/imgs/logo.png">
 ===========
 
+BCASH operators: see `doc/bcash-ops.md` for practical build/start/reset/mining checks.
+
 What is Zcash?
 --------------
 
