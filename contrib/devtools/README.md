@@ -2,6 +2,22 @@ Contents
 ===========
 This directory contains tools for developers working on this repository.
 
+bcash-rpc-smoke.sh
+==================
+
+A non-destructive RPC health check helper for local or remote bcash nodes.
+It runs read-only methods (`getblockchaininfo`, `getnetworkinfo`, and
+`getmininginfo`) and exits non-zero if RPC connectivity or authentication fails.
+
+Examples:
+
+    # From repo root, using default ./src/bitcoin-cli and cookie auth
+    contrib/devtools/bcash-rpc-smoke.sh
+
+    # Against a remote node with explicit credentials
+    contrib/devtools/bcash-rpc-smoke.sh --rpcconnect 10.0.0.5 --rpcport 9332 \
+      --rpcuser bcash --rpcpassword secret
+
 github-merge.sh
 ==================
 
