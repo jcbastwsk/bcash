@@ -100,3 +100,47 @@ maintained:
 
 Usage: git-subtree-check.sh DIR COMMIT
 COMMIT may be omitted, in which case HEAD is used.
+
+bcash-rpc-cluster-status.sh
+===========================
+
+A non-destructive RPC status probe for multi-node BCash development clusters.
+It queries each node endpoint with `getblockcount`, `getconnectioncount`, and
+`getdifficulty`, then prints a compact table for quick health checks.
+
+Usage:
+
+    contrib/devtools/bcash-rpc-cluster-status.sh [--strict-heights] [--timeout SECONDS] name=url [name=url ...]
+
+Example:
+
+    contrib/devtools/bcash-rpc-cluster-status.sh \
+      node-0=http://rpcuser:rpcpass@127.0.0.1:18443/ \
+      node-1=http://rpcuser:rpcpass@127.0.0.1:18444/
+
+Exit codes:
+- non-zero if any endpoint is unreachable or returns RPC errors
+- with `--strict-heights`, non-zero when node heights diverge
+
+bcash-rpc-wait-sync.sh
+======================
+
+A non-destructive readiness gate that polls multiple BCash RPC endpoints until
+all nodes are reachable, heights are aligned, and each node has at least a
+minimum peer count.
+
+Usage:
+
+    contrib/devtools/bcash-rpc-wait-sync.sh [--timeout SECONDS] [--interval SECONDS] [--rpc-timeout SEC] [--min-peers N] [--quiet] name=url [name=url ...]
+
+Example:
+
+    contrib/devtools/bcash-rpc-wait-sync.sh --timeout 300 --min-peers 1 \
+      node-0=http://rpcuser:rpcpass@127.0.0.1:18443/ \
+      node-1=http://rpcuser:rpcpass@127.0.0.1:18444/ \
+      node-2=http://rpcuser:rpcpass@127.0.0.1:18445/
+
+Exit codes:
+- 0 when sync criteria are satisfied
+- 1 on timeout / unsatisfied criteria
+- 2 on invalid arguments
