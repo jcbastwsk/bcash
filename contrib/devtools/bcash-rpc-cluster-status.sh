@@ -147,7 +147,15 @@ for pair in "${args[@]}"; do
     failures=$((failures + 1))
     continue
   fi
-  peers="$(json_parse_result "${peers_json}")"
+  set +e
+  peers="$(json_parse_result "${peers_json}" 2>&1)"
+  peers_parse_rc=$?
+  set -e
+  if [ ${peers_parse_rc} -ne 0 ]; then
+    printf "%-14s %-8s %-8s %-14s %-s\n" "${name}" "${height}" "-" "-" "ERROR: ${peers}"
+    failures=$((failures + 1))
+    continue
+  fi
 
   set +e
   difficulty_json="$(rpc_call "${url}" getdifficulty 2>&1)"
@@ -158,7 +166,15 @@ for pair in "${args[@]}"; do
     failures=$((failures + 1))
     continue
   fi
-  difficulty="$(json_parse_result "${difficulty_json}")"
+  set +e
+  difficulty="$(json_parse_result "${difficulty_json}" 2>&1)"
+  difficulty_parse_rc=$?
+  set -e
+  if [ ${difficulty_parse_rc} -ne 0 ]; then
+    printf "%-14s %-8s %-8s %-14s %-s\n" "${name}" "${height}" "${peers}" "-" "ERROR: ${difficulty}"
+    failures=$((failures + 1))
+    continue
+  fi
 
   status="OK"
   if [ -z "${first_height}" ]; then
