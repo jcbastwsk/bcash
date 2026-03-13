@@ -100,3 +100,24 @@ maintained:
 
 Usage: git-subtree-check.sh DIR COMMIT
 COMMIT may be omitted, in which case HEAD is used.
+
+bcash-rpc-cluster-status.sh
+===========================
+
+A non-destructive RPC status probe for multi-node BCash development clusters.
+It queries each node endpoint with `getblockcount`, `getconnectioncount`, and
+`getdifficulty`, then prints a compact table for quick health checks.
+
+Usage:
+
+    contrib/devtools/bcash-rpc-cluster-status.sh [--strict-heights] [--timeout SECONDS] name=url [name=url ...]
+
+Example:
+
+    contrib/devtools/bcash-rpc-cluster-status.sh \
+      node-0=http://rpcuser:rpcpass@127.0.0.1:18443/ \
+      node-1=http://rpcuser:rpcpass@127.0.0.1:18444/
+
+Exit codes:
+- non-zero if any endpoint is unreachable or returns RPC errors
+- with `--strict-heights`, non-zero when node heights diverge
